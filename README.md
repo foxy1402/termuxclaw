@@ -214,6 +214,29 @@ bash install.sh --prefer-prebuilt
 
 If installed with zip, re-download latest zip and repeat install steps.
 
+### Fresh reinstall (reset old config and start as new)
+
+If you want a completely fresh onboarding (new config defaults, clean workspace files), remove old runtime data first:
+
+```bash
+rm -f ~/.zeroclaw/config.toml
+rm -rf ~/.zeroclaw/workspace
+```
+
+Then reinstall and onboard again:
+
+```bash
+cd ~/termuxclaw
+bash install.sh --prefer-prebuilt
+zeroclaw onboard
+```
+
+Optional full wipe (also removes logs/state/secrets cache under `~/.zeroclaw`):
+
+```bash
+rm -rf ~/.zeroclaw
+```
+
 ---
 
 ## Common problems and quick fixes

@@ -65,6 +65,21 @@ const MODEL_CACHE_FILE: &str = "models_cache.json";
 const MODEL_CACHE_TTL_SECS: u64 = 12 * 60 * 60;
 const CUSTOM_MODEL_SENTINEL: &str = "__custom_model__";
 
+fn personal_termux_autonomy() -> AutonomyConfig {
+    let mut autonomy = AutonomyConfig::default();
+    autonomy.level = crate::security::AutonomyLevel::Full;
+    autonomy.workspace_only = false;
+    autonomy.allowed_commands = vec!["*".to_string()];
+    autonomy.forbidden_paths.clear();
+    autonomy.max_actions_per_hour = u32::MAX;
+    autonomy.max_cost_per_day_cents = u32::MAX;
+    autonomy.require_approval_for_medium_risk = false;
+    autonomy.block_high_risk_commands = false;
+    autonomy.always_ask.clear();
+    autonomy.non_cli_excluded_tools.clear();
+    autonomy
+}
+
 fn has_launchable_channels(channels: &ChannelsConfig) -> bool {
     channels.channels_except_webhook().iter().any(|(_, ok)| *ok)
 }
@@ -126,7 +141,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     scaffold_workspace(&workspace_dir, &project_ctx, &memory_config.backend).await?;
 
     // ── Build config ──
-    // Defaults: SQLite memory, supervised autonomy, workspace-scoped, native runtime
+    // Defaults: SQLite memory, full autonomy, unrestricted workspace access, native runtime
     let config = Config {
         workspace_dir: workspace_dir.clone(),
         config_path: config_path.clone(),
@@ -145,7 +160,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         provider_max_tokens: None,
         extra_headers: std::collections::HashMap::new(),
         observability: ObservabilityConfig::default(),
-        autonomy: AutonomyConfig::default(),
+        autonomy: personal_termux_autonomy(),
         backup: crate::config::BackupConfig::default(),
         data_retention: crate::config::DataRetentionConfig::default(),
         cloud_ops: crate::config::CloudOpsConfig::default(),
@@ -214,9 +229,9 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     };
 
     println!(
-        "  {} Security: {} | workspace-scoped",
+        "  {} Security: {} | unrestricted",
         style("✓").green().bold(),
-        style("Supervised").green()
+        style("Full").green()
     );
     println!(
         "  {} Memory: {} (auto-save: {})",
@@ -586,7 +601,7 @@ async fn run_quick_setup_with_home(
         provider_max_tokens: None,
         extra_headers: std::collections::HashMap::new(),
         observability: ObservabilityConfig::default(),
-        autonomy: AutonomyConfig::default(),
+        autonomy: personal_termux_autonomy(),
         backup: crate::config::BackupConfig::default(),
         data_retention: crate::config::DataRetentionConfig::default(),
         cloud_ops: crate::config::CloudOpsConfig::default(),
@@ -695,7 +710,7 @@ async fn run_quick_setup_with_home(
     println!(
         "  {} Security:   {}",
         style("✓").green().bold(),
-        style("Supervised (workspace-scoped)").green()
+        style("Full (unrestricted)").green()
     );
     println!(
         "  {} Memory:     {} (auto-save: {})",
