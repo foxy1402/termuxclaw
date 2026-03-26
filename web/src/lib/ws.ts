@@ -1,6 +1,6 @@
 import type { WsMessage } from '../types/api';
 import { getToken } from './auth';
-import { apiOrigin, basePath } from './basePath';
+import { basePath } from './basePath';
 import { generateUUID } from './uuid';
 
 export type WsMessageHandler = (msg: WsMessage) => void;
