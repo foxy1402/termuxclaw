@@ -124,9 +124,17 @@ Run:
 mkdir -p ~/.termux/boot
 cat > ~/.termux/boot/start-termuxclaw.sh << 'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
+# Keep the phone awake so the bot can run 24/7
 termux-wake-lock
-sleep 10
-nohup zeroclaw daemon >> "$HOME/.zeroclaw/daemon.log" 2>&1 &
+# Wait for Android to fully boot before starting
+sleep 15
+# Watchdog loop: auto-restart zeroclaw if it ever crashes
+while true; do
+  if ! pgrep -x zeroclaw > /dev/null; then
+    nohup zeroclaw daemon >> "$HOME/.zeroclaw/daemon.log" 2>&1 &
+  fi
+  sleep 30
+done
 EOF
 chmod +x ~/.termux/boot/start-termuxclaw.sh
 ```
@@ -281,7 +289,7 @@ zeroclaw agent -m "hello"
 
 - Repository: `https://github.com/foxy1402/termuxclaw`
 - Git clone: `https://github.com/foxy1402/termuxclaw.git`
-- Zip (master): `https://github.com/foxy1402/termuxclaw/archive/refs/heads/master.zip`
+- Zip (main): `https://github.com/foxy1402/termuxclaw/archive/refs/heads/main.zip`
 - Releases: `https://github.com/foxy1402/termuxclaw/releases`
 
 ---

@@ -216,6 +216,26 @@ impl Tool for TermuxApiTool {
         let stdout = Self::truncate_output(String::from_utf8_lossy(&output.stdout).to_string());
         let stderr = Self::truncate_output(String::from_utf8_lossy(&output.stderr).to_string());
 
+        // Detect the well-known Termux:API "Connection refused" error that occurs when
+        // commands like `termux-toast` or `termux-notification` are run from a headless
+        // background daemon. The API app cannot return results over the local socket when
+        // there is no active Termux terminal session. This is non-fatal — report it
+        // gracefully so the agent can continue instead of crashing the daemon.
+        if stderr.contains("Connection refused") || stderr.contains("ResultReturner") {
+            return Ok(ToolResult {
+                success: false,
+                output: String::new(),
+                error: Some(
+                    "Termux:API command failed: the API app could not return results because \
+                     zeroclaw is running as a background daemon with no active Termux terminal. \
+                     Commands like 'toast' and 'notification' require a foreground Termux session. \
+                     Try a command that does not require UI feedback (e.g. 'battery-status', \
+                     'vibrate', 'sensor-list') or open Termux in the foreground and retry."
+                        .into(),
+                ),
+            });
+        }
+
         Ok(ToolResult {
             success: output.status.success(),
             output: stdout,
