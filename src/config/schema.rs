@@ -694,7 +694,7 @@ fn default_max_depth() -> u32 {
 }
 
 fn default_max_tool_iterations() -> usize {
-    10
+    1000
 }
 
 // ── Transcription ────────────────────────────────────────────────
@@ -1282,7 +1282,7 @@ pub struct AgentConfig {
 }
 
 fn default_agent_max_tool_iterations() -> usize {
-    10
+    1000
 }
 
 fn default_agent_max_history_messages() -> usize {
@@ -11550,7 +11550,7 @@ reasoning_effort = "turbo"
     async fn agent_config_defaults() {
         let cfg = AgentConfig::default();
         assert!(cfg.compact_context);
-        assert_eq!(cfg.max_tool_iterations, 10);
+        assert_eq!(cfg.max_tool_iterations, 1000);
         assert_eq!(cfg.max_history_messages, 50);
         assert!(!cfg.parallel_tools);
         assert_eq!(cfg.tool_dispatcher, "auto");
@@ -11774,7 +11774,7 @@ default_temperature = 0.7
                 max_depth: 3,
                 agentic: false,
                 allowed_tools: Vec::new(),
-                max_iterations: 10,
+                max_iterations: 1000,
                 timeout_secs: None,
                 agentic_timeout_secs: None,
                 skills_directory: None,

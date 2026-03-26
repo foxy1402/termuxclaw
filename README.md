@@ -35,6 +35,13 @@ termux-setup-storage
 
 When Android asks for storage permission, press **Allow**.
 
+> [!IMPORTANT]
+> **Termux:API requires two parts to work:**
+> 1. The **Android App** (which you installed from F-Droid).
+> 2. The **Termux Package** (which is included in the `pkg install` command above).
+> 
+> You **must** have both installed, otherwise your bot will fail to interact with your phone's hardware (battery, vibration, sensors, etc).
+
 ---
 
 ## Step 2) Install TermuxClaw (Automated)

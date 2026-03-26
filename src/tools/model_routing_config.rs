@@ -9,7 +9,7 @@ use std::fs;
 use std::sync::Arc;
 
 const DEFAULT_AGENT_MAX_DEPTH: u32 = 3;
-const DEFAULT_AGENT_MAX_ITERATIONS: usize = 10;
+const DEFAULT_AGENT_MAX_ITERATIONS: usize = 1000;
 
 pub struct ModelRoutingConfigTool {
     config: Arc<Config>,

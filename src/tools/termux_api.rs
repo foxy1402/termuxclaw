@@ -15,6 +15,7 @@ const MAX_OUTPUT_BYTES: usize = 1_048_576;
 /// Minimal environment variables needed for Termux binaries.
 const SAFE_ENV_VARS: &[&str] = &[
     "PATH", "HOME", "TERM", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR",
+    "PREFIX", "LD_LIBRARY_PATH", "LD_PRELOAD", "ANDROID_DATA", "ANDROID_ROOT", "ANDROID_I18N_ROOT", "ANDROID_TZDATA_ROOT",
 ];
 
 /// Termux:API command execution tool.
@@ -30,7 +31,10 @@ impl TermuxApiTool {
     }
 
     fn sanitize_command_name(raw: &str) -> Option<String> {
-        let trimmed = raw.trim();
+        let mut trimmed = raw.trim();
+        if trimmed.starts_with("termux-") {
+            trimmed = trimmed.strip_prefix("termux-").unwrap();
+        }
         if trimmed.is_empty() {
             return None;
         }
