@@ -80,6 +80,64 @@ fn personal_termux_autonomy() -> AutonomyConfig {
     autonomy
 }
 
+fn supervised_autonomy() -> AutonomyConfig {
+    let mut autonomy = AutonomyConfig::default();
+    autonomy.level = crate::security::AutonomyLevel::Supervised;
+    autonomy.workspace_only = true;
+    autonomy.allowed_commands = vec![
+        "git".into(),
+        "npm".into(),
+        "cargo".into(),
+        "ls".into(),
+        "cat".into(),
+        "grep".into(),
+        "find".into(),
+        "echo".into(),
+        "pwd".into(),
+        "wc".into(),
+        "head".into(),
+        "tail".into(),
+        "date".into(),
+        "python".into(),
+        "python3".into(),
+        "pip".into(),
+        "node".into(),
+    ];
+    autonomy.forbidden_paths = vec![
+        "/etc".into(),
+        "/root".into(),
+        "/home".into(),
+        "/usr".into(),
+        "/bin".into(),
+        "/sbin".into(),
+        "/lib".into(),
+        "/opt".into(),
+        "/boot".into(),
+        "/dev".into(),
+        "/proc".into(),
+        "/sys".into(),
+        "/var".into(),
+        "/tmp".into(),
+        "~/.ssh".into(),
+        "~/.gnupg".into(),
+        "~/.aws".into(),
+        "~/.config".into(),
+    ];
+    autonomy.max_actions_per_hour = 20;
+    autonomy.max_cost_per_day_cents = 500;
+    autonomy.require_approval_for_medium_risk = true;
+    autonomy.block_high_risk_commands = true;
+    autonomy
+}
+
+fn autonomy_label(autonomy: &AutonomyConfig) -> &'static str {
+    if autonomy.level == crate::security::AutonomyLevel::Full && !autonomy.workspace_only {
+        "Full (unrestricted)"
+    } else {
+        "Supervised (workspace-scoped)"
+    }
+}
+
 fn has_launchable_channels(channels: &ChannelsConfig) -> bool {
     channels.channels_except_webhook().iter().any(|(_, ok)| *ok)
 }
@@ -126,7 +184,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     let tunnel_config = setup_tunnel()?;
 
     print_step(5, 9, "Tool Mode & Security");
-    let (composio_config, secrets_config) = setup_tool_mode()?;
+    let (composio_config, secrets_config, autonomy_config) = setup_tool_mode()?;
 
     print_step(6, 9, "Web Search");
     let web_search_config = setup_web_search()?;
@@ -160,7 +218,7 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         provider_max_tokens: None,
         extra_headers: std::collections::HashMap::new(),
         observability: ObservabilityConfig::default(),
-        autonomy: personal_termux_autonomy(),
+        autonomy: autonomy_config,
         backup: crate::config::BackupConfig::default(),
         data_retention: crate::config::DataRetentionConfig::default(),
         cloud_ops: crate::config::CloudOpsConfig::default(),
@@ -229,9 +287,9 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
     };
 
     println!(
-        "  {} Security: {} | unrestricted",
+        "  {} Security: {}",
         style("✓").green().bold(),
-        style("Full").green()
+        style(autonomy_label(&config.autonomy)).green()
     );
     println!(
         "  {} Memory: {} (auto-save: {})",
@@ -582,6 +640,26 @@ async fn run_quick_setup_with_home(
 
     // Create memory config based on backend choice
     let memory_config = memory_config_defaults_for_backend(&memory_backend_name);
+    let autonomy_config = if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+        println!();
+        print_bullet("Choose autonomy mode for this installation.");
+        let autonomy_options = vec![
+            "Full (unrestricted) — no policy limits",
+            "Supervised (workspace-scoped) — safer limits + approvals",
+        ];
+        let autonomy_choice = Select::new()
+            .with_prompt("  Select autonomy mode")
+            .items(&autonomy_options)
+            .default(0)
+            .interact()?;
+        if autonomy_choice == 0 {
+            personal_termux_autonomy()
+        } else {
+            supervised_autonomy()
+        }
+    } else {
+        personal_termux_autonomy()
+    };
 
     let config = Config {
         workspace_dir: workspace_dir.clone(),
@@ -601,7 +679,7 @@ async fn run_quick_setup_with_home(
         provider_max_tokens: None,
         extra_headers: std::collections::HashMap::new(),
         observability: ObservabilityConfig::default(),
-        autonomy: personal_termux_autonomy(),
+        autonomy: autonomy_config,
         backup: crate::config::BackupConfig::default(),
         data_retention: crate::config::DataRetentionConfig::default(),
         cloud_ops: crate::config::CloudOpsConfig::default(),
@@ -710,7 +788,7 @@ async fn run_quick_setup_with_home(
     println!(
         "  {} Security:   {}",
         style("✓").green().bold(),
-        style("Full (unrestricted)").green()
+        style(autonomy_label(&config.autonomy)).green()
     );
     println!(
         "  {} Memory:     {} (auto-save: {})",
@@ -3129,7 +3207,7 @@ fn provider_supports_device_flow(provider_name: &str) -> bool {
 
 // ── Step 5: Tool Mode & Security ────────────────────────────────
 
-fn setup_tool_mode() -> Result<(ComposioConfig, SecretsConfig)> {
+fn setup_tool_mode() -> Result<(ComposioConfig, SecretsConfig, AutonomyConfig)> {
     print_bullet("Choose how ZeroClaw connects to external apps.");
     print_bullet("You can always change this later in config.toml.");
     println!();
@@ -3214,7 +3292,31 @@ fn setup_tool_mode() -> Result<(ComposioConfig, SecretsConfig)> {
         );
     }
 
-    Ok((composio_config, secrets_config))
+    println!();
+    print_bullet("Choose autonomy mode for tool execution.");
+    let autonomy_options = vec![
+        "Full (unrestricted) — no policy limits",
+        "Supervised (workspace-scoped) — safer limits + approvals",
+    ];
+    let autonomy_choice = Select::new()
+        .with_prompt("  Select autonomy mode")
+        .items(&autonomy_options)
+        .default(0)
+        .interact()?;
+
+    let autonomy_config = if autonomy_choice == 0 {
+        personal_termux_autonomy()
+    } else {
+        supervised_autonomy()
+    };
+
+    println!(
+        "  {} Security: {}",
+        style("✓").green().bold(),
+        style(autonomy_label(&autonomy_config)).green()
+    );
+
+    Ok((composio_config, secrets_config, autonomy_config))
 }
 
 fn setup_web_search() -> Result<WebSearchConfig> {

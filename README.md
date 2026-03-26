@@ -73,6 +73,9 @@ Termux installer update:
 
 - It now syncs `zeroclaw` into Termux bin (`$PREFIX/bin`) so `zeroclaw` works immediately in the same shell.
 - In interactive terminal mode, it launches the full `zeroclaw onboard` experience (arrow-key navigation, paste support, advanced provider fields like custom base URL), instead of a limited inline prompt flow.
+- During onboarding/quick setup, you can now choose autonomy mode with arrow keys:
+  - `Full (unrestricted)` — no policy limits
+  - `Supervised (workspace-scoped)` — safer limits + approvals
 
 ### If you want prebuilt only (no compile fallback)
 
