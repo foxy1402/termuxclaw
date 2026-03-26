@@ -69,6 +69,11 @@ bash install.sh --prefer-prebuilt
 
 If prebuilt binary is available, it uses that. If not, it builds from source.
 
+Termux installer update:
+
+- It now syncs `zeroclaw` into Termux bin (`$PREFIX/bin`) so `zeroclaw` works immediately in the same shell.
+- In interactive terminal mode, it launches the full `zeroclaw onboard` experience (arrow-key navigation, paste support, advanced provider fields like custom base URL), instead of a limited inline prompt flow.
+
 ### If you want prebuilt only (no compile fallback)
 
 ```bash
@@ -85,6 +90,8 @@ cargo install --path . --force --locked
 ---
 
 ## Step 4) First run setup
+
+If you used `bash install.sh --prefer-prebuilt` in an interactive Termux session, onboarding is usually started automatically at the end of install.
 
 Run onboarding:
 
@@ -220,6 +227,22 @@ pkg install -y termux-api
 ```
 
 Also make sure **Termux:API app** is installed.
+
+### `zeroclaw: command not found` after install
+
+With current installer versions this should be fixed on Termux (binary is synced to `$PREFIX/bin`).
+
+If you installed using an older script, run:
+
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+```
+
+Then re-run install:
+
+```bash
+bash install.sh --prefer-prebuilt
+```
 
 ### Build fails / too slow
 

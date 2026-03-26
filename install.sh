@@ -149,6 +149,27 @@ have_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+is_termux() {
+  [[ -n "${TERMUX_VERSION:-}" || -d "/data/data/com.termux" ]]
+}
+
+sync_termux_bin() {
+  local source_bin="$1"
+  local termux_prefix termux_bin
+
+  is_termux || return 0
+  [[ -x "$source_bin" ]] || return 0
+
+  termux_prefix="${PREFIX:-/data/data/com.termux/files/usr}"
+  termux_bin="$termux_prefix/bin"
+  if [[ -d "$termux_bin" && -w "$termux_bin" ]]; then
+    install -m 0755 "$source_bin" "$termux_bin/zeroclaw"
+    step_ok "Synced binary to $termux_bin/zeroclaw"
+  else
+    warn "Could not sync zeroclaw into $termux_bin (missing directory or no write permission)."
+  fi
+}
+
 get_total_memory_mb() {
   case "$(uname -s)" in
     Linux)
@@ -206,7 +227,7 @@ detect_release_target() {
       ;;
     Linux:aarch64|Linux:arm64)
       # Termux on Android needs the android target, not linux-gnu
-      if [[ -n "${TERMUX_VERSION:-}" || -d "/data/data/com.termux" ]]; then
+      if is_termux; then
         echo "aarch64-linux-android"
       else
         echo "aarch64-unknown-linux-gnu"
@@ -238,7 +259,7 @@ detect_device_class() {
   fi
 
   # Termux / Android
-  if [[ -n "${TERMUX_VERSION:-}" || -d "/data/data/com.termux" ]]; then
+  if is_termux; then
     echo "mobile"
     return
   fi
@@ -397,12 +418,17 @@ install_prebuilt_binary() {
   install_dir="$HOME/.cargo/bin"
   mkdir -p "$install_dir"
   install -m 0755 "$extracted_bin" "$install_dir/zeroclaw"
+  sync_termux_bin "$install_dir/zeroclaw"
   rm -rf "$temp_dir"
 
   step_ok "Installed pre-built binary to $install_dir/zeroclaw"
   if [[ ":$PATH:" != *":$install_dir:"* ]]; then
-    warn "$install_dir is not in PATH for this shell."
-    warn "Run: export PATH=\"$install_dir:\$PATH\""
+    if is_termux && [[ -x "${PREFIX:-/data/data/com.termux/files/usr}/bin/zeroclaw" ]]; then
+      step_dot "Termux PATH already includes ${PREFIX:-/data/data/com.termux/files/usr}/bin"
+    else
+      warn "$install_dir is not in PATH for this shell."
+      warn "Run: export PATH=\"$install_dir:\$PATH\""
+    fi
   fi
 
   return 0
@@ -1109,6 +1135,18 @@ CONTAINER_CLI="${ZEROCLAW_CONTAINER_CLI:-docker}"
 API_KEY="${ZEROCLAW_API_KEY:-}"
 PROVIDER="${ZEROCLAW_PROVIDER:-openrouter}"
 MODEL="${ZEROCLAW_MODEL:-}"
+API_KEY_SET=false
+PROVIDER_SET=false
+MODEL_SET=false
+if [[ -n "${ZEROCLAW_API_KEY:-}" ]]; then
+  API_KEY_SET=true
+fi
+if [[ -n "${ZEROCLAW_PROVIDER:-}" ]]; then
+  PROVIDER_SET=true
+fi
+if [[ -n "${ZEROCLAW_MODEL:-}" ]]; then
+  MODEL_SET=true
+fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -1154,6 +1192,7 @@ while [[ $# -gt 0 ]]; do
         error "--api-key requires a value"
         exit 1
       }
+      API_KEY_SET=true
       shift 2
       ;;
     --provider)
@@ -1162,6 +1201,7 @@ while [[ $# -gt 0 ]]; do
         error "--provider requires a value"
         exit 1
       }
+      PROVIDER_SET=true
       shift 2
       ;;
     --model)
@@ -1170,6 +1210,7 @@ while [[ $# -gt 0 ]]; do
         error "--model requires a value"
         exit 1
       }
+      MODEL_SET=true
       shift 2
       ;;
     --build-first)
@@ -1496,6 +1537,7 @@ if [[ "$SKIP_INSTALL" == false ]]; then
 
   cargo install --path "$WORK_DIR" --force --locked $CARGO_FEATURE_FLAGS
   step_ok "ZeroClaw installed"
+  sync_termux_bin "$HOME/.cargo/bin/zeroclaw"
 
   # Sync binary to ~/.local/bin so PATH lookups find the fresh version
   if [[ -d "$HOME/.local/bin" ]]; then
@@ -1599,7 +1641,21 @@ echo -e "${BOLD_BLUE}[3/3]${RESET} ${BOLD}Finalizing setup${RESET}"
 
 # --- Inline onboarding (provider + API key configuration) ---
 if [[ "$SKIP_ONBOARD" == false && -n "$ZEROCLAW_BIN" ]]; then
-  if [[ -n "$API_KEY" ]]; then
+  if [[ -t 0 && -t 1 && "$API_KEY_SET" == false ]]; then
+    step_dot "Launching interactive onboard flow"
+    ONBOARD_CMD=("$ZEROCLAW_BIN" onboard)
+    if [[ "$PROVIDER_SET" == true ]]; then
+      ONBOARD_CMD+=(--provider "$PROVIDER")
+    fi
+    if [[ "$MODEL_SET" == true ]]; then
+      ONBOARD_CMD+=(--model "$MODEL")
+    fi
+    if "${ONBOARD_CMD[@]}" 2>/dev/null; then
+      step_ok "Provider configured"
+    else
+      step_fail "Provider configuration failed — run zeroclaw onboard to retry"
+    fi
+  elif [[ -n "$API_KEY" ]]; then
     step_dot "Configuring provider: ${PROVIDER}"
     ONBOARD_CMD=("$ZEROCLAW_BIN" onboard --api-key "$API_KEY" --provider "$PROVIDER")
     if [[ -n "$MODEL" ]]; then
@@ -1618,24 +1674,7 @@ if [[ "$SKIP_ONBOARD" == false && -n "$ZEROCLAW_BIN" ]]; then
       step_fail "Ollama configuration failed — run zeroclaw onboard to retry"
     fi
   else
-    # No API key and not ollama — prompt inline if interactive, skip otherwise
-    if [[ -t 0 && -t 1 ]]; then
-      prompt_provider
-      prompt_api_key
-      if [[ -n "$API_KEY" ]]; then
-        ONBOARD_CMD=("$ZEROCLAW_BIN" onboard --api-key "$API_KEY" --provider "$PROVIDER")
-        if [[ -n "$MODEL" ]]; then
-          ONBOARD_CMD+=(--model "$MODEL")
-        fi
-        if "${ONBOARD_CMD[@]}" 2>/dev/null; then
-          step_ok "Provider configured"
-        else
-          step_fail "Provider configuration failed — run zeroclaw onboard to retry"
-        fi
-      fi
-    else
-      step_dot "No API key provided — run zeroclaw onboard to configure"
-    fi
+    step_dot "No API key provided — run zeroclaw onboard to configure"
   fi
 elif [[ "$SKIP_ONBOARD" == true ]]; then
   step_dot "Skipping configuration (run zeroclaw onboard later)"
