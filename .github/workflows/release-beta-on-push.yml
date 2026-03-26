@@ -2,7 +2,7 @@ name: Release Beta
 
 on:
   push:
-    branches: [master]
+    branches: [main, master]
 
 concurrency:
   group: release-beta
@@ -21,7 +21,7 @@ env:
 jobs:
   version:
     name: Resolve Version
-    if: github.repository == 'zeroclaw-labs/zeroclaw'
+    
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.ver.outputs.version }}
@@ -62,7 +62,7 @@ jobs:
   release-notes:
     name: Generate Release Notes
     needs: [version]
-    if: github.repository == 'zeroclaw-labs/zeroclaw' && needs.version.outputs.skip != 'true'
+    if: needs.version.outputs.skip != 'true'
     runs-on: ubuntu-latest
     outputs:
       notes: ${{ steps.notes.outputs.body }}
@@ -154,7 +154,7 @@ jobs:
   web:
     name: Build Web Dashboard
     needs: [version]
-    if: github.repository == 'zeroclaw-labs/zeroclaw' && needs.version.outputs.skip != 'true'
+    if: needs.version.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -360,7 +360,7 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
           gh release create "$TAG" release-assets/* \
@@ -369,20 +369,6 @@ jobs:
             --notes-file release-notes.md \
             --prerelease
 
-  redeploy-website:
-    name: Trigger Website Redeploy
-    needs: [publish]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger website redeploy
-        env:
-          PAT: ${{ secrets.WEBSITE_REPO_PAT }}
-        run: |
-          curl -fsSL -X POST \
-            -H "Authorization: token $PAT" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/zeroclaw-labs/zeroclaw-website/dispatches \
-            -d '{"event_type":"new-release","client_payload":{"install_script_url":"https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh"}}'
 
   docker:
     name: Push Docker Image

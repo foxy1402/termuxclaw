@@ -381,7 +381,7 @@ jobs:
 
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.validate.outputs.tag }}
         run: |
           gh release create "$TAG" release-assets/* \
@@ -390,77 +390,6 @@ jobs:
             --notes-file release-notes.md \
             --latest
 
-  crates-io:
-    name: Publish to crates.io
-    needs: [validate, publish]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.92.0
-
-      - uses: Swatinem/rust-cache@v2
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-
-      - name: Build web dashboard
-        run: cd web && npm ci && npm run build
-
-      - name: Clean web build artifacts
-        run: rm -rf web/node_modules web/src web/package.json web/package-lock.json web/tsconfig*.json web/vite.config.ts web/index.html
-
-      - name: Publish aardvark-sys to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          OUTPUT=$(cargo publish --locked --allow-dirty --no-verify -p aardvark-sys 2>&1) && exit 0
-          echo "$OUTPUT"
-          if echo "$OUTPUT" | grep -q 'already exists'; then
-            echo "::notice::aardvark-sys already on crates.io — skipping"
-            exit 0
-          fi
-          exit 1
-
-      - name: Wait for aardvark-sys to index
-        run: sleep 15
-
-      - name: Publish to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          VERSION: ${{ inputs.version }}
-        run: |
-          # Publish to crates.io; treat "already exists" as success
-          # (auto-publish workflow may have already published this version)
-          CRATE_NAME=$(sed -n 's/^name = "\([^"]*\)"/\1/p' Cargo.toml | head -1)
-          OUTPUT=$(cargo publish --locked --allow-dirty --no-verify 2>&1) && exit 0
-          echo "$OUTPUT"
-          if echo "$OUTPUT" | grep -q 'already exists'; then
-            echo "::notice::${CRATE_NAME}@${VERSION} already on crates.io — skipping"
-            exit 0
-          fi
-          exit 1
-
-  redeploy-website:
-    name: Trigger Website Redeploy
-    needs: [publish]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger website redeploy
-        env:
-          PAT: ${{ secrets.WEBSITE_REPO_PAT }}
-        run: |
-          curl -fsSL -X POST \
-            -H "Authorization: token $PAT" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/zeroclaw-labs/zeroclaw-website/dispatches \
-            -d '{"event_type":"new-release","client_payload":{"install_script_url":"https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh"}}'
 
   docker:
     name: Push Docker Image
@@ -532,56 +461,3 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate.outputs.tag }}-debian
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:debian
           platforms: linux/amd64,linux/arm64
-
-  # ── Post-publish: package manager auto-sync ─────────────────────────
-  scoop:
-    name: Update Scoop Manifest
-    needs: [validate, publish]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
-    uses: ./.github/workflows/pub-scoop.yml
-    with:
-      release_tag: ${{ needs.validate.outputs.tag }}
-      dry_run: false
-    secrets: inherit
-
-  aur:
-    name: Update AUR Package
-    needs: [validate, publish]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
-    uses: ./.github/workflows/pub-aur.yml
-    with:
-      release_tag: ${{ needs.validate.outputs.tag }}
-      dry_run: false
-    secrets: inherit
-
-  homebrew:
-    name: Update Homebrew Core
-    needs: [validate, publish]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
-    uses: ./.github/workflows/pub-homebrew-core.yml
-    with:
-      release_tag: ${{ needs.validate.outputs.tag }}
-      dry_run: false
-    secrets: inherit
-
-  # ── Post-publish: announce after release + website are live ───────────
-  # Docker push can be slow; don't let it block announcements.
-  tweet:
-    name: Tweet Release
-    needs: [validate, publish, redeploy-website]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
-    uses: ./.github/workflows/tweet-release.yml
-    with:
-      release_tag: ${{ needs.validate.outputs.tag }}
-      release_url: https://github.com/zeroclaw-labs/zeroclaw/releases/tag/${{ needs.validate.outputs.tag }}
-    secrets: inherit
-
-  discord:
-    name: Discord Announcement
-    needs: [validate, publish, redeploy-website]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
-    uses: ./.github/workflows/discord-release.yml
-    with:
-      release_tag: ${{ needs.validate.outputs.tag }}
-      release_url: https://github.com/zeroclaw-labs/zeroclaw/releases/tag/${{ needs.validate.outputs.tag }}
-    secrets: inherit
