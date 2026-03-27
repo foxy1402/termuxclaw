@@ -124,16 +124,16 @@ Run:
 mkdir -p ~/.termux/boot
 cat > ~/.termux/boot/start-termuxclaw.sh << 'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
-# Keep the phone awake so the bot can run 24/7
+export PATH=/data/data/com.termux/files/usr/bin:$PATH
+export HOME=/data/data/com.termux/files/home
 termux-wake-lock
-# Wait for Android to fully boot before starting
 sleep 15
-# Watchdog loop: auto-restart zeroclaw if it ever crashes
 while true; do
-  if ! pgrep -x zeroclaw > /dev/null; then
+  if ! pgrep -f 'zeroclaw daemon' > /dev/null; then
+    echo "$(date -Is) zeroclaw not running, starting" >> "$HOME/.zeroclaw/daemon.log"
     nohup zeroclaw daemon >> "$HOME/.zeroclaw/daemon.log" 2>&1 &
   fi
-  sleep 30
+  sleep 10
 done
 EOF
 chmod +x ~/.termux/boot/start-termuxclaw.sh
