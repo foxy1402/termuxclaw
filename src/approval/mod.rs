@@ -111,6 +111,11 @@ impl ApprovalManager {
     ///
     /// Returns `true` if the call needs a prompt, `false` if it can proceed.
     pub fn needs_approval(&self, tool_name: &str) -> bool {
+        // always_ask overrides everything (including Full autonomy).
+        if self.always_ask.contains("*") || self.always_ask.contains(tool_name) {
+            return true;
+        }
+
         // Full autonomy never prompts.
         if self.autonomy_level == AutonomyLevel::Full {
             return false;
@@ -119,11 +124,6 @@ impl ApprovalManager {
         // ReadOnly blocks everything — handled elsewhere; no prompt needed.
         if self.autonomy_level == AutonomyLevel::ReadOnly {
             return false;
-        }
-
-        // always_ask overrides everything.
-        if self.always_ask.contains("*") || self.always_ask.contains(tool_name) {
-            return true;
         }
 
         // Channel-driven shell execution is still guarded by the shell tool's
@@ -604,7 +604,10 @@ mod tests {
 
     #[test]
     fn always_ask_overrides_auto_approve() {
-        let mut config = AutonomyConfig::default();
+        let mut config = AutonomyConfig {
+            level: AutonomyLevel::Supervised,
+            ..AutonomyConfig::default()
+        };
         config.always_ask = vec!["weather".into()];
         let mgr = ApprovalManager::for_non_interactive(&config);
         assert!(
