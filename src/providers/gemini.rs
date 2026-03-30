@@ -1183,6 +1183,7 @@ impl Provider for GeminiProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use directories::UserDirs;
     use reqwest::{header::AUTHORIZATION, StatusCode};
 
     /// Helper to create a test OAuth auth variant.
