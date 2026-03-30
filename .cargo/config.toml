@@ -1,6 +1,6 @@
 # Windows MSVC configuration to handle PDB path length limits
 [target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "link-arg=/PDBPAGESIZE:12800", "-C", "link-arg=/PDBVERSION:20160101"]
+rustflags = ["-C", "link-arg=/PDBPAGESIZE:16384", "-C", "link-arg=/PDBVERSION:20160101"]
 
 [target.x86_64-unknown-linux-musl]
 rustflags = ["-C", "link-arg=-static"]
