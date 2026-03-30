@@ -93,48 +93,31 @@ jobs:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
 
   build:
-    name: Build ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    name: Build aarch64-linux-android
+    runs-on: ubuntu-latest
     timeout-minutes: 40
     needs: [lint]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-14
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           toolchain: 1.92.0
-          targets: ${{ matrix.target }}
+          targets: aarch64-linux-android
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
-        if: runner.os != 'Windows'
-
-      - name: Install mold linker
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y mold
 
       - name: Ensure web/dist placeholder exists
         shell: bash
         run: mkdir -p web/dist && touch web/dist/.gitkeep
 
+      - name: Setup Android NDK
+        run: echo "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin" >> "$GITHUB_PATH"
+
       - name: Build release
         shell: bash
-        run: cargo build --profile ci --locked --target ${{ matrix.target }}
-        env:
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+        run: cargo build --profile ci --locked --target aarch64-linux-android
 
   check-all-features:
-    name: Check (all features)
+    name: Check (termux features)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [lint]
@@ -145,16 +128,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           toolchain: 1.92.0
+          targets: aarch64-linux-android
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
-
-      - name: Install system dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y libudev-dev
 
       - name: Ensure web/dist placeholder exists
         run: mkdir -p web/dist && touch web/dist/.gitkeep
 
-      - name: Check all features
-        run: cargo check --features ci-all --locked
+      - name: Setup Android NDK
+        run: echo "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: Check termux feature set
+        run: cargo check --features channel-lark --locked --target aarch64-linux-android
 
   docs-quality:
     name: Docs Quality
