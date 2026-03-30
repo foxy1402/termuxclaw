@@ -10564,15 +10564,15 @@ mod tests {
     #[test]
     async fn autonomy_config_default() {
         let a = AutonomyConfig::default();
-        assert_eq!(a.level, AutonomyLevel::Supervised);
-        assert!(a.workspace_only);
-        assert!(a.allowed_commands.contains(&"git".to_string()));
-        assert!(a.allowed_commands.contains(&"cargo".to_string()));
-        assert!(a.forbidden_paths.contains(&"/etc".to_string()));
-        assert_eq!(a.max_actions_per_hour, 20);
-        assert_eq!(a.max_cost_per_day_cents, 500);
-        assert!(a.require_approval_for_medium_risk);
-        assert!(a.block_high_risk_commands);
+        // Termux-first defaults: fully open, no restrictions
+        assert_eq!(a.level, AutonomyLevel::Full);
+        assert!(!a.workspace_only);
+        assert_eq!(a.allowed_commands, vec!["*".to_string()]);
+        assert!(a.forbidden_paths.is_empty());
+        assert_eq!(a.max_actions_per_hour, u32::MAX);
+        assert_eq!(a.max_cost_per_day_cents, u32::MAX);
+        assert!(!a.require_approval_for_medium_risk);
+        assert!(!a.block_high_risk_commands);
         assert!(a.shell_env_passthrough.is_empty());
     }
 
