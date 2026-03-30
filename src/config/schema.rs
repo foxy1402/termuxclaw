@@ -12343,7 +12343,10 @@ default_temperature = 0.7
     async fn checklist_autonomy_default_is_workspace_scoped() {
         // Termux-first deployment: fully open, no restrictions
         let a = AutonomyConfig::default();
-        assert!(!a.workspace_only, "Termux default has no workspace restrictions");
+        assert!(
+            !a.workspace_only,
+            "Termux default has no workspace restrictions"
+        );
         assert!(
             a.forbidden_paths.is_empty(),
             "Termux default has no forbidden paths"
