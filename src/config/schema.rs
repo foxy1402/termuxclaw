@@ -10954,7 +10954,7 @@ default_temperature = 0.7
         assert!(parsed.default_provider.is_none());
         assert_eq!(parsed.observability.backend, "none");
         assert_eq!(parsed.observability.runtime_trace_mode, "none");
-        assert_eq!(parsed.autonomy.level, AutonomyLevel::Supervised);
+        assert_eq!(parsed.autonomy.level, AutonomyLevel::Full);
         assert_eq!(parsed.runtime.kind, "native");
         assert!(!parsed.heartbeat.enabled);
         assert!(parsed.channels_config.cli);
