@@ -6105,7 +6105,10 @@ mod tests {
                 tool_call_id: None,
             },
         ];
-        let approval_cfg = crate::config::AutonomyConfig::default();
+        let approval_cfg = crate::config::AutonomyConfig {
+            level: crate::security::AutonomyLevel::Supervised,
+            ..crate::config::AutonomyConfig::default()
+        };
         let approval_mgr = ApprovalManager::from_config(&approval_cfg);
 
         assert!(!should_execute_tools_in_parallel(
