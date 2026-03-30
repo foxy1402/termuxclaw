@@ -824,6 +824,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp).await;
         config.autonomy.allowed_commands = vec!["cat".into()];
+        config.autonomy.forbidden_paths = vec!["/etc".into()];
         let job = test_job("cat /etc/passwd");
         let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
 
@@ -839,6 +840,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp).await;
         config.autonomy.allowed_commands = vec!["grep".into()];
+        config.autonomy.forbidden_paths = vec!["/etc".into()];
         let job = test_job("grep --file=/etc/passwd root ./src");
         let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
 
@@ -854,6 +856,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp).await;
         config.autonomy.allowed_commands = vec!["grep".into()];
+        config.autonomy.forbidden_paths = vec!["/etc".into()];
         let job = test_job("grep -f/etc/passwd root ./src");
         let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
 
@@ -869,6 +872,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp).await;
         config.autonomy.allowed_commands = vec!["cat".into()];
+        config.autonomy.forbidden_paths = vec!["~root".into()];
         let job = test_job("cat ~root/.ssh/id_rsa");
         let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
 
@@ -884,6 +888,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp).await;
         config.autonomy.allowed_commands = vec!["cat".into()];
+        config.autonomy.forbidden_paths = vec!["/etc".into()];
         let job = test_job("cat </etc/passwd");
         let security = SecurityPolicy::from_config(&config.autonomy, &config.workspace_dir);
 
