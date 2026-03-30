@@ -354,6 +354,7 @@ mod tests {
         assert!(!pattern_matches("hello", r"^\d+$"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn test_skill_with_echo() {
         let dir = tempfile::tempdir().unwrap();
@@ -383,6 +384,7 @@ mod tests {
         assert!(result.failures.is_empty());
     }
 
+    #[cfg(unix)]
     #[test]
     fn test_skill_with_failing_test() {
         let dir = tempfile::tempdir().unwrap();
@@ -398,6 +400,7 @@ mod tests {
         assert_eq!(result.failures[0].actual_exit, 0);
     }
 
+    #[cfg(unix)]
     #[test]
     fn test_skill_exit_code_mismatch() {
         let dir = tempfile::tempdir().unwrap();
@@ -440,6 +443,7 @@ mod tests {
         assert_eq!(total_passed, 4);
     }
 
+    #[cfg(unix)]
     #[test]
     fn test_all_skills_finds_skills_with_tests() {
         let dir = tempfile::tempdir().unwrap();

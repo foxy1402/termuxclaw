@@ -126,6 +126,7 @@ mod tests {
         assert_eq!(runtime.storage_path(), PathBuf::from("/tmp/dummy-runtime"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn build_shell_command_executes() {
         let runtime = DummyRuntime;
