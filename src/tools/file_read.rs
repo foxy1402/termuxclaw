@@ -333,6 +333,7 @@ mod tests {
         let _ = tokio::fs::remove_dir_all(&dir).await;
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn file_read_blocks_absolute_path() {
         let tool = FileReadTool::new(test_security(std::env::temp_dir()));
