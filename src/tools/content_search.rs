@@ -711,6 +711,7 @@ mod tests {
             .contains(&json!("pattern")));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_basic_match() {
         let dir = TempDir::new().unwrap();
@@ -724,6 +725,7 @@ mod tests {
         assert!(result.output.contains("fn main"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_files_with_matches_mode() {
         let dir = TempDir::new().unwrap();
@@ -742,6 +744,7 @@ mod tests {
         assert!(result.output.contains("Total: 2 files"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_count_mode() {
         let dir = TempDir::new().unwrap();
@@ -759,6 +762,7 @@ mod tests {
         assert!(result.output.contains("Total:"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_case_insensitive() {
         let dir = TempDir::new().unwrap();
@@ -775,6 +779,7 @@ mod tests {
         assert!(result.output.contains("hello world"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_include_filter() {
         let dir = TempDir::new().unwrap();
@@ -791,6 +796,7 @@ mod tests {
         assert!(!result.output.contains("readme.txt"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_context_lines() {
         let dir = TempDir::new().unwrap();
@@ -812,6 +818,7 @@ mod tests {
         assert!(result.output.contains("line4"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_no_matches() {
         let dir = TempDir::new().unwrap();
@@ -862,6 +869,7 @@ mod tests {
             .contains("Invalid output_mode"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_subdirectory() {
         let dir = TempDir::new().unwrap();
@@ -882,6 +890,7 @@ mod tests {
 
     // --- Security tests ---
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn content_search_rejects_absolute_path() {
         let tool = ContentSearchTool::new(test_security(std::env::temp_dir()));
@@ -1001,3 +1010,4 @@ mod tests {
         assert_eq!(truncated, "abc");
     }
 }
+
