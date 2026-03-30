@@ -481,7 +481,7 @@ impl CopilotProvider {
         Ok((api_key_info.token, endpoint))
     }
 
-    /// Get a GitHub access token from config, cache, or device flow.
+    /// Get a GitHub access token from config or cache (Termux: no device flow).
     async fn get_github_access_token(&self) -> anyhow::Result<String> {
         if let Some(token) = &self.github_token {
             return Ok(token.clone());
@@ -495,74 +495,9 @@ impl CopilotProvider {
             }
         }
 
-        let token = self.device_code_login().await?;
-        write_file_secure(&access_token_path, &token).await;
-        Ok(token)
-    }
-
-    /// Run GitHub OAuth device code flow.
-    async fn device_code_login(&self) -> anyhow::Result<String> {
-        let response: DeviceCodeResponse = self
-            .http_client()
-            .post(GITHUB_DEVICE_CODE_URL)
-            .header("Accept", "application/json")
-            .json(&serde_json::json!({
-                "client_id": GITHUB_CLIENT_ID,
-                "scope": "read:user"
-            }))
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
-
-        let mut poll_interval = Duration::from_secs(response.interval.max(5));
-        let expires_in = response.expires_in.max(1);
-        let expires_at = tokio::time::Instant::now() + Duration::from_secs(expires_in);
-
-        eprintln!(
-            "\nGitHub Copilot authentication is required.\n\
-             Visit: {}\n\
-             Code: {}\n\
-             Waiting for authorization...\n",
-            response.verification_uri, response.user_code
-        );
-
-        while tokio::time::Instant::now() < expires_at {
-            tokio::time::sleep(poll_interval).await;
-
-            let token_response: AccessTokenResponse = self
-                .http_client()
-                .post(GITHUB_ACCESS_TOKEN_URL)
-                .header("Accept", "application/json")
-                .json(&serde_json::json!({
-                    "client_id": GITHUB_CLIENT_ID,
-                    "device_code": response.device_code,
-                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
-                }))
-                .send()
-                .await?
-                .json()
-                .await?;
-
-            if let Some(token) = token_response.access_token {
-                eprintln!("Authentication succeeded.\n");
-                return Ok(token);
-            }
-
-            match token_response.error.as_deref() {
-                Some("slow_down") => {
-                    poll_interval += Duration::from_secs(5);
-                }
-                Some("authorization_pending") | None => {}
-                Some("expired_token") => {
-                    anyhow::bail!("GitHub device authorization expired")
-                }
-                Some(error) => anyhow::bail!("GitHub auth failed: {error}"),
-            }
-        }
-
-        anyhow::bail!("Timed out waiting for GitHub authorization")
+        anyhow::bail!(
+            "Termux-only: GitHub access token required. Set GITHUB_TOKEN environment variable or provide in config."
+        )
     }
 
     /// Exchange a GitHub access token for a Copilot API key.

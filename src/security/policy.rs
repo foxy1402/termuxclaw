@@ -171,7 +171,7 @@ fn default_allowed_commands() -> Vec<String> {
 /// Default forbidden paths for Unix platforms.
 #[cfg(not(target_os = "windows"))]
 fn default_forbidden_paths() -> Vec<String> {
-    vec![
+    let mut paths = vec![
         "/etc".into(),
         "/root".into(),
         "/home".into(),
@@ -190,7 +190,20 @@ fn default_forbidden_paths() -> Vec<String> {
         "~/.gnupg".into(),
         "~/.aws".into(),
         "~/.config".into(),
-    ]
+    ];
+    
+    // Termux-specific paths (Android)
+    #[cfg(target_os = "android")]
+    {
+        paths.extend(vec![
+            "/data/data".into(), // Other apps' data
+            "/system".into(),    // Android system partition
+            "/vendor".into(),    // Vendor partition
+            "/product".into(),   // Product partition
+        ]);
+    }
+    
+    paths
 }
 
 /// Default forbidden paths for Windows platforms.

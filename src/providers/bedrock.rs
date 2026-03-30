@@ -63,9 +63,16 @@ impl AwsCredentials {
     }
 
     /// Fetch credentials from EC2 IMDSv2 instance metadata service.
+    /// Termux-only: Reduced timeout (1s) since Termux doesn't run on EC2.
     async fn from_imds() -> anyhow::Result<Self> {
+        // Skip IMDS if AWS environment variables suggest we're not on EC2
+        if env_optional("AWS_ACCESS_KEY_ID").is_some() 
+            || env_optional("AWS_EXECUTION_ENV").is_none() {
+            anyhow::bail!("Not running on EC2 (use AWS_ACCESS_KEY_ID environment variable)");
+        }
+
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(3))
+            .timeout(std::time::Duration::from_secs(1)) // Termux: reduced from 3s
             .build()?;
 
         // Step 1: get IMDSv2 token

@@ -355,12 +355,15 @@ impl TtsProvider for GoogleTtsProvider {
 }
 
 // ── Edge TTS (subprocess) ────────────────────────────────────────
+// Termux-only: Edge TTS requires subprocess spawning with edge-tts CLI (desktop-only).
 
+#[cfg(not(target_os = "android"))]
 /// Edge TTS provider — free, uses the `edge-tts` CLI subprocess.
 pub struct EdgeTtsProvider {
     binary_path: String,
 }
 
+#[cfg(not(target_os = "android"))]
 impl EdgeTtsProvider {
     /// Allowed basenames for the Edge TTS binary.
     const ALLOWED_BINARIES: &[&str] = &["edge-tts", "edge-playback"];
@@ -389,6 +392,7 @@ impl EdgeTtsProvider {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 #[async_trait::async_trait]
 impl TtsProvider for EdgeTtsProvider {
     fn name(&self) -> &str {
@@ -574,6 +578,7 @@ impl TtsManager {
             }
         }
 
+        #[cfg(not(target_os = "android"))]
         if let Some(ref edge_cfg) = config.edge {
             match EdgeTtsProvider::new(edge_cfg) {
                 Ok(p) => {

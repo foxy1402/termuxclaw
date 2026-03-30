@@ -23,7 +23,6 @@ pub mod discord;
 pub mod discord_history;
 pub mod email_channel;
 pub mod gmail_push;
-pub mod imessage;
 pub mod irc;
 #[cfg(feature = "channel-lark")]
 pub mod lark;
@@ -70,7 +69,6 @@ pub use discord::DiscordChannel;
 pub use discord_history::DiscordHistoryChannel;
 pub use email_channel::EmailChannel;
 pub use gmail_push::GmailPushChannel;
-pub use imessage::IMessageChannel;
 pub use irc::IrcChannel;
 #[cfg(feature = "channel-lark")]
 pub use lark::LarkChannel;
@@ -3726,6 +3724,7 @@ async fn bind_telegram_identity(config: &Config, identity: &str) -> Result<()> {
     updated.save().await?;
     println!("✅ Bound Telegram identity: {normalized}");
     println!("   Saved to {}", updated.config_path.display());
+    #[cfg(not(target_os = "android"))]
     match maybe_restart_managed_daemon_service() {
         Ok(true) => {
             println!("🔄 Detected running managed daemon service; reloaded automatically.");
@@ -3742,9 +3741,16 @@ async fn bind_telegram_identity(config: &Config, identity: &str) -> Result<()> {
             );
         }
     }
+    #[cfg(target_os = "android")]
+    println!(
+        "ℹ️ Termux-only: If `zeroclaw channel start` is running, restart it manually to reload the updated allowlist."
+    );
     Ok(())
 }
 
+/// Attempt to restart managed daemon services (launchd, systemd, OpenRC).
+/// Termux-only: Android doesn't use desktop daemon managers.
+#[cfg(not(target_os = "android"))]
 fn maybe_restart_managed_daemon_service() -> Result<bool> {
     if cfg!(target_os = "macos") {
         let home = directories::UserDirs::new()
@@ -4114,13 +4120,6 @@ fn collect_configured_channels(
                 .with_proxy_url(mm.proxy_url.clone())
                 .with_transcription(config.transcription.clone()),
             ),
-        });
-    }
-
-    if let Some(ref im) = config.channels_config.imessage {
-        channels.push(ConfiguredChannel {
-            display_name: "iMessage",
-            channel: Arc::new(IMessageChannel::new(im.allowed_contacts.clone())),
         });
     }
 

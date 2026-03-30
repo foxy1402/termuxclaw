@@ -471,27 +471,21 @@ async fn refresh_gemini_cli_token_async(
 impl GeminiProvider {
     /// Create a new Gemini provider.
     ///
-    /// Authentication priority:
+    /// Authentication priority (Termux-only: API keys only, no CLI OAuth):
     /// 1. Explicit API key passed in
     /// 2. `GEMINI_API_KEY` environment variable
     /// 3. `GOOGLE_API_KEY` environment variable
-    /// 4. Gemini CLI OAuth tokens (`~/.gemini/oauth_creds.json`)
     pub fn new(api_key: Option<&str>) -> Self {
-        let oauth_cred_paths = Self::discover_oauth_cred_paths();
         let resolved_auth = api_key
             .and_then(Self::normalize_non_empty)
             .map(GeminiAuth::ExplicitKey)
             .or_else(|| Self::load_non_empty_env("GEMINI_API_KEY").map(GeminiAuth::EnvGeminiKey))
-            .or_else(|| Self::load_non_empty_env("GOOGLE_API_KEY").map(GeminiAuth::EnvGoogleKey))
-            .or_else(|| {
-                Self::try_load_gemini_cli_token(oauth_cred_paths.first())
-                    .map(|state| GeminiAuth::OAuthToken(Arc::new(tokio::sync::Mutex::new(state))))
-            });
+            .or_else(|| Self::load_non_empty_env("GOOGLE_API_KEY").map(GeminiAuth::EnvGoogleKey));
 
         Self {
             auth: resolved_auth,
             oauth_project: Arc::new(tokio::sync::Mutex::new(None)),
-            oauth_cred_paths,
+            oauth_cred_paths: Vec::new(), // Termux: no CLI OAuth
             oauth_index: Arc::new(tokio::sync::Mutex::new(0)),
             auth_service: None,
             auth_profile_override: None,
@@ -500,19 +494,16 @@ impl GeminiProvider {
 
     /// Create a new Gemini provider with managed OAuth from auth-profiles.json.
     ///
-    /// Authentication priority:
+    /// Authentication priority (Termux-only: API keys or managed OAuth):
     /// 1. Explicit API key passed in
     /// 2. `GEMINI_API_KEY` environment variable
     /// 3. `GOOGLE_API_KEY` environment variable
     /// 4. Managed OAuth from auth-profiles.json (if auth_service provided)
-    /// 5. Gemini CLI OAuth tokens (`~/.gemini/oauth_creds.json`)
     pub fn new_with_auth(
         api_key: Option<&str>,
         auth_service: AuthService,
         profile_override: Option<String>,
     ) -> Self {
-        let oauth_cred_paths = Self::discover_oauth_cred_paths();
-
         // First check API keys
         let resolved_auth = api_key
             .and_then(Self::normalize_non_empty)
@@ -521,7 +512,6 @@ impl GeminiProvider {
             .or_else(|| Self::load_non_empty_env("GOOGLE_API_KEY").map(GeminiAuth::EnvGoogleKey));
 
         // If no API key, we'll use managed OAuth (checked at runtime)
-        // or fall back to CLI OAuth
         let (auth, use_managed) = if resolved_auth.is_some() {
             (resolved_auth, false)
         } else {
@@ -550,24 +540,25 @@ impl GeminiProvider {
             if has_managed {
                 (Some(GeminiAuth::ManagedOAuth), true)
             } else {
-                // Fall back to CLI OAuth
-                let cli_auth = Self::try_load_gemini_cli_token(oauth_cred_paths.first())
-                    .map(|state| GeminiAuth::OAuthToken(Arc::new(tokio::sync::Mutex::new(state))));
-                (cli_auth, false)
+                (None, false) // Termux: no CLI OAuth fallback
             }
         };
 
         Self {
             auth,
             oauth_project: Arc::new(tokio::sync::Mutex::new(None)),
-            oauth_cred_paths,
+            oauth_cred_paths: Vec::new(), // Termux: no CLI OAuth
             oauth_index: Arc::new(tokio::sync::Mutex::new(0)),
             auth_service: if use_managed {
                 Some(auth_service)
             } else {
                 None
             },
-            auth_profile_override: profile_override,
+            auth_profile_override: if use_managed {
+                profile_override
+            } else {
+                None
+            },
         }
     }
 
@@ -586,7 +577,11 @@ impl GeminiProvider {
             .and_then(|value| Self::normalize_non_empty(&value))
     }
 
-    fn load_gemini_cli_creds(creds_path: &PathBuf) -> Option<GeminiCliOAuthCreds> {
+    /// Check if any Gemini authentication is available (Termux: API keys or managed OAuth only)
+    pub fn has_any_auth() -> bool {
+        Self::load_non_empty_env("GEMINI_API_KEY").is_some()
+            || Self::load_non_empty_env("GOOGLE_API_KEY").is_some()
+    }
         if !creds_path.exists() {
             return None;
         }
@@ -597,115 +592,6 @@ impl GeminiProvider {
     /// Discover all OAuth credential files from known Gemini CLI installations.
     ///
     /// Looks in `~/.gemini/oauth_creds.json` (default) plus any
-    /// `~/.gemini-*-home/.gemini/oauth_creds.json` siblings.
-    fn discover_oauth_cred_paths() -> Vec<PathBuf> {
-        let home = match UserDirs::new() {
-            Some(u) => u.home_dir().to_path_buf(),
-            None => return Vec::new(),
-        };
-
-        let mut paths = Vec::new();
-
-        let primary = home.join(".gemini").join("oauth_creds.json");
-        if primary.exists() {
-            paths.push(primary);
-        }
-
-        if let Ok(entries) = std::fs::read_dir(&home) {
-            let mut extras: Vec<PathBuf> = entries
-                .filter_map(|e| e.ok())
-                .filter_map(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    if name.starts_with(".gemini-") && name.ends_with("-home") {
-                        let path = e.path().join(".gemini").join("oauth_creds.json");
-                        if path.exists() {
-                            return Some(path);
-                        }
-                    }
-                    None
-                })
-                .collect();
-            extras.sort();
-            paths.extend(extras);
-        }
-
-        paths
-    }
-
-    /// Try to load OAuth credentials from Gemini CLI's cached credentials.
-    /// Location: `~/.gemini/oauth_creds.json`
-    ///
-    /// Returns the full `OAuthTokenState` so the provider can refresh at runtime.
-    fn try_load_gemini_cli_token(path: Option<&PathBuf>) -> Option<OAuthTokenState> {
-        let creds = Self::load_gemini_cli_creds(path?)?;
-
-        // Determine expiry in millis: prefer expiry_date over expiry (RFC 3339)
-        let expiry_millis = creds.expiry_date.or_else(|| {
-            creds.expiry.as_deref().and_then(|expiry| {
-                chrono::DateTime::parse_from_rfc3339(expiry)
-                    .ok()
-                    .map(|dt| dt.timestamp_millis())
-            })
-        });
-
-        let access_token = creds
-            .access_token
-            .and_then(|token| Self::normalize_non_empty(&token))?;
-
-        let id_token_client_id = creds
-            .id_token
-            .as_deref()
-            .and_then(extract_client_id_from_id_token);
-
-        let client_id = Self::load_non_empty_env("GEMINI_OAUTH_CLIENT_ID")
-            .or_else(|| {
-                creds
-                    .client_id
-                    .as_deref()
-                    .and_then(Self::normalize_non_empty)
-            })
-            .or(id_token_client_id);
-        let client_secret = Self::load_non_empty_env("GEMINI_OAUTH_CLIENT_SECRET").or_else(|| {
-            creds
-                .client_secret
-                .as_deref()
-                .and_then(Self::normalize_non_empty)
-        });
-
-        Some(OAuthTokenState {
-            access_token,
-            refresh_token: creds.refresh_token,
-            client_id,
-            client_secret,
-            expiry_millis,
-        })
-    }
-
-    /// Get the Gemini CLI config directory (~/.gemini)
-    fn gemini_cli_dir() -> Option<PathBuf> {
-        UserDirs::new().map(|u| u.home_dir().join(".gemini"))
-    }
-
-    /// Check if Gemini CLI is configured and has valid credentials
-    pub fn has_cli_credentials() -> bool {
-        Self::discover_oauth_cred_paths().iter().any(|path| {
-            Self::load_gemini_cli_creds(path)
-                .and_then(|creds| {
-                    creds
-                        .access_token
-                        .as_deref()
-                        .and_then(Self::normalize_non_empty)
-                })
-                .is_some()
-        })
-    }
-
-    /// Check if any Gemini authentication is available
-    pub fn has_any_auth() -> bool {
-        Self::load_non_empty_env("GEMINI_API_KEY").is_some()
-            || Self::load_non_empty_env("GOOGLE_API_KEY").is_some()
-            || Self::has_cli_credentials()
-    }
 
     /// Get authentication source description for diagnostics.
     /// Uses the stored enum variant — no env var re-reading at call time.
@@ -761,43 +647,12 @@ impl GeminiProvider {
 
     /// Rotate to the next available OAuth credentials file and swap state.
     /// Returns `true` when rotation succeeded.
+    /// Termux-only: CLI OAuth rotation not supported (no ~/.gemini CLI credentials).
     async fn rotate_oauth_credential(
         &self,
-        state: &Arc<tokio::sync::Mutex<OAuthTokenState>>,
+        _state: &Arc<tokio::sync::Mutex<OAuthTokenState>>,
     ) -> bool {
-        if self.oauth_cred_paths.len() <= 1 {
-            return false;
-        }
-
-        let mut idx = self.oauth_index.lock().await;
-        let start = *idx;
-
-        loop {
-            let next = (*idx + 1) % self.oauth_cred_paths.len();
-            *idx = next;
-
-            if next == start {
-                return false;
-            }
-
-            if let Some(next_state) =
-                Self::try_load_gemini_cli_token(self.oauth_cred_paths.get(next))
-            {
-                {
-                    let mut guard = state.lock().await;
-                    *guard = next_state;
-                }
-                {
-                    let mut cached_project = self.oauth_project.lock().await;
-                    *cached_project = None;
-                }
-                tracing::warn!(
-                    "Gemini OAuth: rotated credential to {}",
-                    self.oauth_cred_paths[next].display()
-                );
-                return true;
-            }
-        }
+        false
     }
 
     fn format_model_name(model: &str) -> String {

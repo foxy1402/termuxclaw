@@ -46,9 +46,6 @@ tokio-stream = { version = "0.1.18", default-features = false, features = ["fs",
 # HTTP client - minimal features
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking", "multipart", "stream", "socks"] }
 
-# Matrix client + E2EE decryption
-matrix-sdk = { version = "0.16", optional = true, default-features = false, features = ["e2e-encryption", "rustls-tls", "markdown", "sqlite"] }
-
 # Serialization
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["std"] }
@@ -79,9 +76,6 @@ urlencoding = "2.1"
 
 # HTML to plain text conversion (web_fetch tool)
 nanohtml2text = "0.2"
-
-# Optional Rust-native browser automation backend
-fantoccini = { version = "0.22.1", optional = true, default-features = false, features = ["rustls-tls"] }
 
 # Progress bars (update pipeline)
 indicatif = "0.18"
@@ -132,7 +126,6 @@ prost = { version = "0.14", default-features = false, features = ["derive"], opt
 
 # Memory / persistence
 rusqlite = { version = "0.37", features = ["bundled"] }
-postgres = { version = "0.19", features = ["with-chrono-0_4"], optional = true }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 chrono-tz = "0.10"
 cron = "0.15"
@@ -177,96 +170,44 @@ http-body-util = "0.1"
 rust-embed = "8"
 mime_guess = "2"
 
-# OpenTelemetry — OTLP trace + metrics export.
-# Use the blocking HTTP exporter client to avoid Tokio-reactor panics in
-# OpenTelemetry background batch threads when ZeroClaw emits spans/metrics from
-# non-Tokio contexts.
-opentelemetry = { version = "0.31", default-features = false, features = ["trace", "metrics"], optional = true }
-opentelemetry_sdk = { version = "0.31", default-features = false, features = ["trace", "metrics"], optional = true }
-opentelemetry-otlp = { version = "0.31", default-features = false, features = ["trace", "metrics", "http-proto", "reqwest-blocking-client", "reqwest-rustls-webpki-roots"], optional = true }
-
-
-
-# PDF extraction for datasheet RAG (optional, enable with --features rag-pdf)
-pdf-extract = { version = "0.10", optional = true }
-
-# WASM plugin runtime (extism)
-extism = { version = "1.20", optional = true }
-
-# Cross-platform audio capture for voice wake word detection (optional, enable with --features voice-wake)
-cpal = { version = "0.15", optional = true }
-
-# Terminal QR rendering for WhatsApp Web pairing flow.
-qrcode = { version = "0.14", optional = true }
-
-# WhatsApp Web client (wa-rs) — optional, enable with --features whatsapp-web
-# Uses wa-rs for Bot and Client, wa-rs-core for storage traits, custom rusqlite backend avoids Diesel conflict.
-wa-rs = { version = "0.2", optional = true, default-features = false }
-wa-rs-core = { version = "0.2", optional = true, default-features = false }
-wa-rs-binary = { version = "0.2", optional = true, default-features = false }
-wa-rs-proto = { version = "0.2", optional = true, default-features = false }
-wa-rs-ureq-http = { version = "0.2", optional = true }
-wa-rs-tokio-transport = { version = "0.2", optional = true, default-features = false }
-
-# Landlock sandbox (Linux only)
-[target.'cfg(target_os = "linux")'.dependencies]
-landlock = { version = "0.4", optional = true }
-
 # Unix-specific dependencies (for root check, etc.)
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [features]
-default = ["observability-prometheus", "channel-nostr", "channel-lark", "skill-creation", "rag-pdf"]
+default = ["channel-nostr", "channel-lark", "skill-creation", "observability-prometheus"]
 channel-nostr = ["dep:nostr-sdk"]
-
-channel-matrix = ["dep:matrix-sdk"]
 channel-lark = ["dep:prost"]
 channel-feishu = ["channel-lark"]  # Alias for Feishu users (Lark and Feishu are the same platform)
-memory-postgres = ["dep:postgres"]
 observability-prometheus = ["dep:prometheus"]
-observability-otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:opentelemetry-otlp"]
 
-# Browser backend feature alias used by cfg(feature = "browser-native")
-browser-native = ["dep:fantoccini"]
-# Backward-compatible alias for older invocations
-fantoccini = ["browser-native"]
-# Sandbox feature aliases used by cfg(feature = "sandbox-*")
-sandbox-landlock = ["dep:landlock"]
-sandbox-bubblewrap = []
-# Backward-compatible alias for older invocations
-landlock = ["sandbox-landlock"]
 # Prometheus metrics observer (requires 64-bit atomics; disable on 32-bit targets)
 metrics = ["observability-prometheus"]
 
-# rag-pdf = PDF ingestion for datasheet RAG
-rag-pdf = ["dep:pdf-extract"]
 # skill-creation = Autonomous skill creation from successful multi-step tasks
 skill-creation = []
-# whatsapp-web = Native WhatsApp Web client with custom rusqlite storage backend
-whatsapp-web = ["dep:wa-rs", "dep:wa-rs-core", "dep:wa-rs-binary", "dep:wa-rs-proto", "dep:wa-rs-ureq-http", "dep:wa-rs-tokio-transport", "dep:serde-big-array", "dep:prost", "dep:qrcode"]
-# voice-wake = Voice wake word detection via microphone (cpal)
-voice-wake = ["dep:cpal"]
-# WASM plugin system (extism-based)
-plugins-wasm = ["dep:extism"]
-# WebAuthn / FIDO2 security key authentication
-webauthn = []
-# Meta-feature for CI: all features except those requiring system C libraries
-# not available on standard CI runners (e.g., voice-wake needs libasound2-dev).
-ci-all = [
+
+# ─── Termux (Android) build profiles ─────────────────────────────────────────
+
+# Standard Termux (aarch64 / 64-bit Android phones):
+# Drops: rag-pdf, channel-matrix, observability-otel, browser-native,
+#        sandbox-landlock, sandbox-bubblewrap, voice-wake, plugins-wasm,
+#        memory-postgres, whatsapp-web
+# Keeps: channel-nostr, channel-lark, skill-creation, observability-prometheus
+# Build: cargo build --release --no-default-features --features termux
+termux = [
+    "channel-nostr",              # Pure-Rust Nostr p2p messaging
+    "channel-lark",               # Prost protobuf only — lightweight
+    "skill-creation",             # Zero extra deps — autonomous skill building
+    "observability-prometheus",   # Safe on aarch64 (64-bit AtomicU64 present)
+]
+
+# Minimal Termux (armv7 / 32-bit Android, or storage-constrained devices):
+# Drops prometheus too (AtomicU64 unavailable on 32-bit ARM).
+# Build: cargo build --release --no-default-features --features termux-minimal
+termux-minimal = [
     "channel-nostr",
-    "channel-matrix",
-    "channel-lark",
-    "memory-postgres",
-    "observability-prometheus",
-    "observability-otel",
-    "browser-native",
-    "sandbox-landlock",
-    "sandbox-bubblewrap",
-    "rag-pdf",
     "skill-creation",
-    "whatsapp-web",
-    "plugins-wasm",
 ]
 
 [profile.release]

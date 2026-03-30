@@ -102,7 +102,6 @@ mod plugins;
 mod providers;
 mod runtime;
 mod security;
-mod service;
 mod skillforge;
 mod skills;
 mod sop;
@@ -116,7 +115,7 @@ use config::Config;
 // Re-export so binary modules can use crate::<CommandEnum> while keeping a single source of truth.
 pub use zeroclaw::{
     ChannelCommands, CronCommands, GatewayCommands, IntegrationCommands, MigrateCommands,
-    ServiceCommands, SkillCommands, SopCommands,
+    SkillCommands, SopCommands,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -291,16 +290,6 @@ Examples:
         /// Host to bind to; defaults to config gateway.host
         #[arg(long)]
         host: Option<String>,
-    },
-
-    /// Manage OS service lifecycle (launchd/systemd user service)
-    Service {
-        /// Init system to use: auto (detect), systemd, or openrc
-        #[arg(long, default_value = "auto", value_parser = ["auto", "systemd", "openrc"])]
-        service_init: String,
-
-        #[command(subcommand)]
-        service_command: ServiceCommands,
     },
 
     /// Run diagnostics for daemon/scheduler/channel freshness
@@ -1153,11 +1142,6 @@ async fn main() -> Result<()> {
             );
             println!("🛡️  Autonomy:      {:?}", config.autonomy.level);
             println!("⚙️  Runtime:       {}", config.runtime.kind);
-            if service::is_running() {
-                println!("🟢 Service:       running");
-            } else {
-                println!("🔴 Service:       stopped");
-            }
             let effective_memory_backend = memory::effective_memory_backend_name(
                 &config.memory.backend,
                 Some(&config.storage.provider.config),
@@ -1284,14 +1268,6 @@ async fn main() -> Result<()> {
             println!("\n  custom:<URL>   Any OpenAI-compatible endpoint");
             println!("  anthropic-custom:<URL>  Any Anthropic-compatible endpoint");
             Ok(())
-        }
-
-        Commands::Service {
-            service_command,
-            service_init,
-        } => {
-            let init_system = service_init.parse()?;
-            service::handle_command(&service_command, &config, init_system)
         }
 
         Commands::Doctor { doctor_command } => match doctor_command {
