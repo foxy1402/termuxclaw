@@ -299,7 +299,7 @@ pub fn all_tools(
     memory: Arc<dyn Memory>,
     composio_key: Option<&str>,
     composio_entity_id: Option<&str>,
-    browser_config: &crate::config::BrowserConfig,
+    _browser_config: &crate::config::BrowserConfig,
     http_config: &crate::config::HttpRequestConfig,
     web_fetch_config: &crate::config::WebFetchConfig,
     workspace_dir: &std::path::Path,
@@ -360,7 +360,7 @@ pub fn all_tools_with_runtime(
     ChannelMapHandle,
     Option<ChannelMapHandle>,
 ) {
-    let has_shell_access = runtime.has_shell_access();
+    let _has_shell_access = runtime.has_shell_access();
     let sandbox = create_sandbox(&root_config.security);
     let mut tool_arcs: Vec<Arc<dyn Tool>> = vec![
         Arc::new(

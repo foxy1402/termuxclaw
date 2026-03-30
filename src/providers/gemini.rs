@@ -8,7 +8,6 @@ use crate::auth::AuthService;
 use crate::providers::traits::{ChatMessage, Provider, TokenUsage};
 use async_trait::async_trait;
 use base64::Engine;
-use directories::UserDirs;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -659,10 +658,7 @@ impl GeminiProvider {
     /// Rotate to the next available OAuth credentials file and swap state.
     /// Returns `true` when rotation succeeded.
     /// Termux-only: CLI OAuth rotation not supported (no ~/.gemini CLI credentials).
-    async fn rotate_oauth_credential(
-        &self,
-        _state: &Arc<tokio::sync::Mutex<OAuthTokenState>>,
-    ) -> bool {
+    fn rotate_oauth_credential(&self, _state: &Arc<tokio::sync::Mutex<OAuthTokenState>>) -> bool {
         false
     }
 
@@ -926,7 +922,7 @@ impl GeminiProvider {
                 let can_retry = match auth {
                     GeminiAuth::OAuthToken(_) => {
                         if let Some(state) = oauth_state.as_ref() {
-                            self.rotate_oauth_credential(state).await
+                            self.rotate_oauth_credential(state)
                         } else {
                             false
                         }
@@ -1933,7 +1929,7 @@ mod tests {
             expiry_millis: None,
         }));
         let provider = test_provider(Some(GeminiAuth::OAuthToken(state.clone())));
-        assert!(!provider.rotate_oauth_credential(&state).await);
+        assert!(!provider.rotate_oauth_credential(&state));
     }
 
     #[test]

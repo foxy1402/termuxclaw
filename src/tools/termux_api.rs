@@ -195,12 +195,10 @@ impl TermuxApiTool {
                         .map_or(false, |e| e.contains("timed out")) =>
                 {
                     last_error = Some(result.error.unwrap_or_default());
-                    continue; // Retry on timeout
                 }
                 Ok(result) => return Ok(result), // Non-timeout error, don't retry
                 Err(e) => {
                     last_error = Some(e.to_string());
-                    continue;
                 }
             }
         }

@@ -998,13 +998,11 @@ Allowlist Telegram username (without '@') or numeric user ID.",
         Ok(resp.bytes().await?.to_vec())
     }
 
+    #[cfg(feature = "rag-pdf")]
     async fn extract_pdf_text_snippet(bytes: Vec<u8>) -> Option<String> {
-        #[cfg(feature = "rag-pdf")]
-        {
-            let text = match tokio::task::spawn_blocking(move || {
-                pdf_extract::extract_text_from_mem(&bytes)
-            })
-            .await
+        let text =
+            match tokio::task::spawn_blocking(move || pdf_extract::extract_text_from_mem(&bytes))
+                .await
             {
                 Ok(Ok(text)) => text,
                 Ok(Err(err)) => {
@@ -1017,32 +1015,25 @@ Allowlist Telegram username (without '@') or numeric user ID.",
                 }
             };
 
-            let normalized = text.trim();
-            if normalized.is_empty() {
-                return None;
-            }
-
-            let mut output: String = normalized
-                .chars()
-                .take(TELEGRAM_INLINE_PDF_MAX_CHARS)
-                .collect();
-
-            if normalized.chars().count() > TELEGRAM_INLINE_PDF_MAX_CHARS {
-                let _ = write!(
-                    output,
-                    "\n\n... [truncated at {} chars]",
-                    TELEGRAM_INLINE_PDF_MAX_CHARS
-                );
-            }
-
-            Some(output)
+        let normalized = text.trim();
+        if normalized.is_empty() {
+            return None;
         }
 
-        #[cfg(not(feature = "rag-pdf"))]
-        {
-            let _ = bytes;
-            None
+        let mut output: String = normalized
+            .chars()
+            .take(TELEGRAM_INLINE_PDF_MAX_CHARS)
+            .collect();
+
+        if normalized.chars().count() > TELEGRAM_INLINE_PDF_MAX_CHARS {
+            let _ = write!(
+                output,
+                "\n\n... [truncated at {} chars]",
+                TELEGRAM_INLINE_PDF_MAX_CHARS
+            );
         }
+
+        Some(output)
     }
 
     fn extract_plain_text_snippet(bytes: &[u8]) -> Option<String> {
