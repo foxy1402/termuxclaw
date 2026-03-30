@@ -485,7 +485,7 @@ mod tests {
             autonomy_level: AutonomyLevel::Supervised,
         };
         let prompt = SystemPromptBuilder::with_defaults().build(&ctx).unwrap();
-        assert!(prompt.contains("## Tools"));
+        assert!(prompt.contains("## Available Tools & Capabilities"));
         assert!(prompt.contains("test_tool"));
         assert!(prompt.contains("instr"));
     }
@@ -740,7 +740,7 @@ mod tests {
             "full autonomy should NOT include 'bypass oversight' instructions"
         );
         assert!(
-            output.contains("Execute tools and actions directly"),
+            output.contains("Execute tools, skills, and actions directly"),
             "full autonomy should instruct to execute directly"
         );
         assert!(
