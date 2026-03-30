@@ -1010,4 +1010,3 @@ mod tests {
         assert_eq!(truncated, "abc");
     }
 }
-
