@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ZeroClaw Termux (Android) Installer
-# Optimized for ARM64/ARMv7 Android devices running Termux
+# Optimized for ARM64 Android devices running Termux
 set -euo pipefail
 
 # --- Color and styling ---
@@ -59,7 +59,7 @@ Usage:
   ./install.sh [options]
 
 Requirements:
-  - Termux on Android (ARM64 or ARMv7)
+  - Termux on Android (ARM64 recommended; ARMv7 source-build fallback)
   - At least 2GB RAM recommended
   - At least 2GB free storage (for pre-built binary)
   - At least 6GB free storage (for building from source)
@@ -73,7 +73,7 @@ Options:
   -h, --help                 Show help
 
 Examples:
-  # Standard install (downloads pre-built binary - fast!)
+  # Standard install (downloads pre-built ARM64 binary - fast!)
   ./install.sh
 
   # Build from source (for custom features)
@@ -299,10 +299,14 @@ download_binary() {
   local target
   case "$(uname -m)" in
     aarch64) target="aarch64-linux-android" ;;
-    armv7l|armv8l) target="armv7-linux-androideabi" ;;
+    armv7l|armv8l)
+      warn "ARMv7 detected: no pre-built release asset is published for this architecture"
+      warn "Falling back to source build"
+      return 1
+      ;;
     *)
       warn "Unsupported architecture: $(uname -m)"
-      warn "Only ARM64 (aarch64) and ARMv7 are supported for pre-built binaries"
+      warn "Only ARM64 (aarch64) has pre-built binaries"
       return 1
       ;;
   esac

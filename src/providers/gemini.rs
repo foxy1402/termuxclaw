@@ -554,11 +554,7 @@ impl GeminiProvider {
             } else {
                 None
             },
-            auth_profile_override: if use_managed {
-                profile_override
-            } else {
-                None
-            },
+            auth_profile_override: if use_managed { profile_override } else { None },
         }
     }
 
@@ -582,16 +578,16 @@ impl GeminiProvider {
         Self::load_non_empty_env("GEMINI_API_KEY").is_some()
             || Self::load_non_empty_env("GOOGLE_API_KEY").is_some()
     }
-        if !creds_path.exists() {
-            return None;
-        }
-        let content = std::fs::read_to_string(creds_path).ok()?;
-        serde_json::from_str(&content).ok()
-    }
 
     /// Discover all OAuth credential files from known Gemini CLI installations.
     ///
     /// Looks in `~/.gemini/oauth_creds.json` (default) plus any
+    /// additional paths configured by downstream tooling.
+    ///
+    /// Termux-only: CLI OAuth discovery is disabled, so this returns an empty list.
+    fn discover_oauth_cred_paths() -> Vec<PathBuf> {
+        Vec::new()
+    }
 
     /// Get authentication source description for diagnostics.
     /// Uses the stored enum variant — no env var re-reading at call time.

@@ -66,8 +66,9 @@ impl AwsCredentials {
     /// Termux-only: Reduced timeout (1s) since Termux doesn't run on EC2.
     async fn from_imds() -> anyhow::Result<Self> {
         // Skip IMDS if AWS environment variables suggest we're not on EC2
-        if env_optional("AWS_ACCESS_KEY_ID").is_some() 
-            || env_optional("AWS_EXECUTION_ENV").is_none() {
+        if env_optional("AWS_ACCESS_KEY_ID").is_some()
+            || env_optional("AWS_EXECUTION_ENV").is_none()
+        {
             anyhow::bail!("Not running on EC2 (use AWS_ACCESS_KEY_ID environment variable)");
         }
 

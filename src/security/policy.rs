@@ -191,7 +191,7 @@ fn default_forbidden_paths() -> Vec<String> {
         "~/.aws".into(),
         "~/.config".into(),
     ];
-    
+
     // Termux-specific paths (Android)
     #[cfg(target_os = "android")]
     {
@@ -202,7 +202,7 @@ fn default_forbidden_paths() -> Vec<String> {
             "/product".into(),   // Product partition
         ]);
     }
-    
+
     paths
 }
 

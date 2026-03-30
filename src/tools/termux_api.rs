@@ -20,8 +20,20 @@ const MAX_OUTPUT_BYTES: usize = 1_048_576;
 
 /// Minimal environment variables needed for Termux binaries.
 const SAFE_ENV_VARS: &[&str] = &[
-    "PATH", "HOME", "TERM", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR",
-    "PREFIX", "LD_LIBRARY_PATH", "LD_PRELOAD", "ANDROID_DATA", "ANDROID_ROOT", "ANDROID_I18N_ROOT", "ANDROID_TZDATA_ROOT",
+    "PATH",
+    "HOME",
+    "TERM",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TMPDIR",
+    "PREFIX",
+    "LD_LIBRARY_PATH",
+    "LD_PRELOAD",
+    "ANDROID_DATA",
+    "ANDROID_ROOT",
+    "ANDROID_I18N_ROOT",
+    "ANDROID_TZDATA_ROOT",
 ];
 
 /// Termux:API command execution tool.
@@ -176,7 +188,12 @@ impl TermuxApiTool {
 
             match self.execute_single_attempt(command, args).await {
                 Ok(result) if result.success => return Ok(result),
-                Ok(result) if result.error.as_ref().map_or(false, |e| e.contains("timed out")) => {
+                Ok(result)
+                    if result
+                        .error
+                        .as_ref()
+                        .map_or(false, |e| e.contains("timed out")) =>
+                {
                     last_error = Some(result.error.unwrap_or_default());
                     continue; // Retry on timeout
                 }
@@ -195,7 +212,9 @@ impl TermuxApiTool {
         );
 
         if service_restarted {
-            error_msg.push_str("\nTermux:API service was automatically restarted during retry attempts.");
+            error_msg.push_str(
+                "\nTermux:API service was automatically restarted during retry attempts.",
+            );
         }
 
         Ok(ToolResult {

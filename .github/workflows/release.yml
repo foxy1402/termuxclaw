@@ -87,7 +87,7 @@ jobs:
           cd termuxclaw && ./install.sh
           \`\`\`
 
-          Downloads pre-built ARM64/ARMv7 binary automatically!
+          Downloads pre-built ARM64 binary automatically!
           NOTES_EOF
           )
 
@@ -127,17 +127,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Android ARM64 (most modern phones)
+          # Android ARM64 (Termux primary target)
           - target: aarch64-linux-android
-            artifact: zeroclaw
-          # Android ARMv7 (older/budget phones)
-          - target: armv7-linux-androideabi
             artifact: zeroclaw
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.87.0
+          toolchain: 1.92.0
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:

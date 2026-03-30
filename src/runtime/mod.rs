@@ -36,8 +36,6 @@ mod tests {
         assert!(rt.has_shell_access());
     }
 
-
-
     #[test]
     fn factory_cloudflare_errors() {
         let cfg = RuntimeConfig {
