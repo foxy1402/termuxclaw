@@ -1183,7 +1183,6 @@ impl Provider for GeminiProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use directories::UserDirs;
     use reqwest::{header::AUTHORIZATION, StatusCode};
 
     /// Helper to create a test OAuth auth variant.
@@ -1321,11 +1320,8 @@ mod tests {
     #[test]
     fn gemini_cli_dir_returns_path() {
         let dir = GeminiProvider::gemini_cli_dir();
-        // Should return Some on systems with home dir
-        if UserDirs::new().is_some() {
-            assert!(dir.is_some());
-            assert!(dir.unwrap().ends_with(".gemini"));
-        }
+        // Termux-only: CLI token loading is disabled, always returns None
+        assert!(dir.is_none());
     }
 
     #[test]
