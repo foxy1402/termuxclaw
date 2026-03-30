@@ -385,9 +385,8 @@ cargo build --release --locked
 ### CI/CD Pipelines
 - `ci-run.yml` — Main CI pipeline
 - `checks-on-pr.yml` — PR validation
-- `master-branch-flow.md` — Branch workflow documentation
-- `release-stable-manual.yml` — Stable release
-- `release-beta-on-push.yml` — Beta release
+- `main-branch-flow.md` — Branch workflow documentation
+- `release.yml` — Termux Android release pipeline
 - `publish-crates.yml` — Crates.io publishing
 
 ### Platform Distribution

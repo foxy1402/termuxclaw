@@ -34,9 +34,8 @@ Equivalent allowlist patterns:
 
 | Workflow | File | Trigger |
 |----------|------|---------|
-| Quality Gate | `.github/workflows/checks-on-pr.yml` | Pull requests to `master` |
-| Release Beta | `.github/workflows/release-beta-on-push.yml` | Push to `master` |
-| Release Stable | `.github/workflows/release-stable-manual.yml` | Manual `workflow_dispatch` |
+| Quality Gate | `.github/workflows/checks-on-pr.yml` | Pull requests to `main` |
+| Release | `.github/workflows/release.yml` | Push to `main` |
 | PR Path Labeler | `.github/workflows/pr-path-labeler.yml` | `pull_request_target` (opened, synchronize, reopened) |
 
 ## Change Control

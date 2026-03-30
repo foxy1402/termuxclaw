@@ -93,10 +93,7 @@ pub mod workspace_tool;
 
 pub use ask_user::AskUserTool;
 pub use backup_tool::BackupTool;
-pub use browser::{BrowserTool, ComputerUseConfig};
-#[allow(unused_imports)]
-pub use browser_delegate::{BrowserDelegateConfig, BrowserDelegateTool};
-pub use browser_open::BrowserOpenTool;
+// Browser tools removed for Termux-only build (no desktop browser automation)
 pub use calculator::CalculatorTool;
 pub use canvas::{CanvasStore, CanvasTool};
 pub use cloud_ops::CloudOpsTool;
@@ -464,46 +461,8 @@ pub fn all_tools_with_runtime(
         )));
     }
 
-    if browser_config.enabled {
-        // Add legacy browser_open tool for simple URL opening
-        tool_arcs.push(Arc::new(BrowserOpenTool::new(
-            security.clone(),
-            browser_config.allowed_domains.clone(),
-        )));
-        // Add full browser automation tool (pluggable backend)
-        tool_arcs.push(Arc::new(BrowserTool::new_with_backend(
-            security.clone(),
-            browser_config.allowed_domains.clone(),
-            browser_config.session_name.clone(),
-            browser_config.backend.clone(),
-            browser_config.native_headless,
-            browser_config.native_webdriver_url.clone(),
-            browser_config.native_chrome_path.clone(),
-            ComputerUseConfig {
-                endpoint: browser_config.computer_use.endpoint.clone(),
-                api_key: browser_config.computer_use.api_key.clone(),
-                timeout_ms: browser_config.computer_use.timeout_ms,
-                allow_remote_endpoint: browser_config.computer_use.allow_remote_endpoint,
-                window_allowlist: browser_config.computer_use.window_allowlist.clone(),
-                max_coordinate_x: browser_config.computer_use.max_coordinate_x,
-                max_coordinate_y: browser_config.computer_use.max_coordinate_y,
-            },
-        )));
-    }
-
-    // Browser delegation tool (conditionally registered; requires shell access)
-    if root_config.browser_delegate.enabled {
-        if has_shell_access {
-            tool_arcs.push(Arc::new(BrowserDelegateTool::new(
-                security.clone(),
-                root_config.browser_delegate.clone(),
-            )));
-        } else {
-            tracing::warn!(
-                "browser_delegate: skipped registration because the current runtime does not allow shell access"
-            );
-        }
-    }
+    // Browser tools removed for Termux-only build
+    // (BrowserTool, BrowserOpenTool, BrowserDelegateTool require desktop browser automation)
 
     if http_config.enabled {
         tool_arcs.push(Arc::new(HttpRequestTool::new(
@@ -630,74 +589,18 @@ pub fn all_tools_with_runtime(
         tool_arcs.push(Arc::new(CloudPatternsTool::new()));
     }
 
-    // Google Workspace CLI (gws) integration — requires shell access
-    if root_config.google_workspace.enabled && has_shell_access {
-        tool_arcs.push(Arc::new(GoogleWorkspaceTool::new(
-            security.clone(),
-            root_config.google_workspace.allowed_services.clone(),
-            root_config.google_workspace.allowed_operations.clone(),
-            root_config.google_workspace.credentials_path.clone(),
-            root_config.google_workspace.default_account.clone(),
-            root_config.google_workspace.rate_limit_per_minute,
-            root_config.google_workspace.timeout_secs,
-            root_config.google_workspace.audit_log,
-        )));
-    } else if root_config.google_workspace.enabled {
-        tracing::warn!(
-            "google_workspace: skipped registration because shell access is unavailable"
-        );
-    }
+    // Google Workspace, LinkedIn, Screenshot tools removed for Termux-only build
+    // (Desktop-only integrations not available on Android)
 
-    // Claude Code delegation tool
-    if root_config.claude_code.enabled {
-        tool_arcs.push(Arc::new(ClaudeCodeTool::new(
-            security.clone(),
-            root_config.claude_code.clone(),
-        )));
-    }
-
-    // Claude Code task runner with Slack progress and SSH handoff
-    if root_config.claude_code_runner.enabled {
-        let gateway_url = format!(
-            "http://{}:{}",
-            root_config.gateway.host, root_config.gateway.port
-        );
-        tool_arcs.push(Arc::new(ClaudeCodeRunnerTool::new(
-            security.clone(),
-            root_config.claude_code_runner.clone(),
-            gateway_url,
-        )));
-    }
-
-    // Codex CLI delegation tool
-    if root_config.codex_cli.enabled {
-        tool_arcs.push(Arc::new(CodexCliTool::new(
-            security.clone(),
-            root_config.codex_cli.clone(),
-        )));
-    }
-
-    // Gemini CLI delegation tool
-    if root_config.gemini_cli.enabled {
-        tool_arcs.push(Arc::new(GeminiCliTool::new(
-            security.clone(),
-            root_config.gemini_cli.clone(),
-        )));
-    }
-
-    // OpenCode CLI delegation tool
-    if root_config.opencode_cli.enabled {
-        tool_arcs.push(Arc::new(OpenCodeCliTool::new(
-            security.clone(),
-            root_config.opencode_cli.clone(),
-        )));
-    }
+    // CLI delegation tools removed for Termux-only build:
+    // - ClaudeCodeTool, ClaudeCodeRunnerTool, CodexCliTool, GeminiCliTool, OpenCodeCliTool
+    // These require desktop CLI tools not available on Android/Termux
 
     // PDF extraction (feature-gated at compile time via rag-pdf)
     tool_arcs.push(Arc::new(PdfReadTool::new(security.clone())));
 
-    // Vision tools are always available
-    tool_arcs.push(Arc::new(ScreenshotTool::new(security.clone())));
+    // Screenshot and LinkedIn tools removed for Termux-only build
+    // ImageInfoTool kept (works with local files)
     tool_arcs.push(Arc::new(ImageInfoTool::new(security.clone())));
 
     // Session-to-session messaging tools (always available when sessions dir exists)
@@ -710,17 +613,6 @@ pub fn all_tools_with_runtime(
             security.clone(),
         )));
         tool_arcs.push(Arc::new(SessionsSendTool::new(backend, security.clone())));
-    }
-
-    // LinkedIn integration (config-gated)
-    if root_config.linkedin.enabled {
-        tool_arcs.push(Arc::new(LinkedInTool::new(
-            security.clone(),
-            workspace_dir.to_path_buf(),
-            root_config.linkedin.api_version.clone(),
-            root_config.linkedin.content.clone(),
-            root_config.linkedin.image.clone(),
-        )));
     }
 
     // Standalone image generation tool (config-gated)

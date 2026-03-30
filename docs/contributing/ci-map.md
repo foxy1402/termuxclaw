@@ -2,7 +2,7 @@
 
 This document explains what each GitHub workflow does, when it runs, and whether it should block merges.
 
-For event-by-event delivery behavior across PR, merge, push, and release, see [`.github/workflows/master-branch-flow.md`](../../.github/workflows/master-branch-flow.md).
+For event-by-event delivery behavior across PR, merge, push, and release, see [`.github/workflows/main-branch-flow.md`](../../.github/workflows/main-branch-flow.md).
 
 ## Merge-Blocking vs Optional
 

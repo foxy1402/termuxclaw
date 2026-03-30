@@ -7757,11 +7757,7 @@ impl Default for Config {
             plugins: PluginsConfig::default(),
             locale: None,
             verifiable_intent: VerifiableIntentConfig::default(),
-            claude_code: ClaudeCodeConfig::default(),
-            claude_code_runner: ClaudeCodeRunnerConfig::default(),
-            codex_cli: CodexCliConfig::default(),
-            gemini_cli: GeminiCliConfig::default(),
-            opencode_cli: OpenCodeCliConfig::default(),
+            // CLI delegation tools removed for Termux-only build
             sop: SopConfig::default(),
             shell_tool: ShellToolConfig::default(),
         }
@@ -10914,11 +10910,7 @@ auto_save = true
             plugins: PluginsConfig::default(),
             locale: None,
             verifiable_intent: VerifiableIntentConfig::default(),
-            claude_code: ClaudeCodeConfig::default(),
-            claude_code_runner: ClaudeCodeRunnerConfig::default(),
-            codex_cli: CodexCliConfig::default(),
-            gemini_cli: GeminiCliConfig::default(),
-            opencode_cli: OpenCodeCliConfig::default(),
+            // CLI delegation tools removed for Termux-only build
             sop: SopConfig::default(),
             shell_tool: ShellToolConfig::default(),
         };
@@ -11438,11 +11430,7 @@ default_temperature = 0.7
             plugins: PluginsConfig::default(),
             locale: None,
             verifiable_intent: VerifiableIntentConfig::default(),
-            claude_code: ClaudeCodeConfig::default(),
-            claude_code_runner: ClaudeCodeRunnerConfig::default(),
-            codex_cli: CodexCliConfig::default(),
-            gemini_cli: GeminiCliConfig::default(),
-            opencode_cli: OpenCodeCliConfig::default(),
+            // CLI delegation tools removed for Termux-only build
             sop: SopConfig::default(),
             shell_tool: ShellToolConfig::default(),
         };

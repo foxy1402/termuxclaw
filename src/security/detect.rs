@@ -1,6 +1,6 @@
 //! Auto-detection of available security features
 
-use crate::config::{SandboxBackend, SecurityConfig};
+use crate::config::SecurityConfig;
 use crate::security::traits::Sandbox;
 use std::sync::Arc;
 
@@ -17,41 +17,22 @@ pub fn create_sandbox(_config: &SecurityConfig) -> Arc<dyn Sandbox> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{SandboxConfig, SecurityConfig};
+    use crate::config::SecurityConfig;
 
     #[test]
-    fn detect_best_sandbox_returns_something() {
-        let sandbox = detect_best_sandbox();
-        // Should always return at least NoopSandbox
+    fn create_sandbox_returns_noop() {
+        let config = SecurityConfig::default();
+        let sandbox = create_sandbox(&config);
+        // Termux always uses NoopSandbox (Android app sandbox provides isolation)
+        assert_eq!(sandbox.name(), "none");
         assert!(sandbox.is_available());
     }
 
     #[test]
-    fn explicit_none_returns_noop() {
-        let config = SecurityConfig {
-            sandbox: SandboxConfig {
-                enabled: Some(false),
-                backend: SandboxBackend::None,
-                firejail_args: Vec::new(),
-            },
-            ..Default::default()
-        };
+    fn sandbox_is_always_available() {
+        let config = SecurityConfig::default();
         let sandbox = create_sandbox(&config);
-        assert_eq!(sandbox.name(), "none");
-    }
-
-    #[test]
-    fn auto_mode_detects_something() {
-        let config = SecurityConfig {
-            sandbox: SandboxConfig {
-                enabled: None, // Auto-detect
-                backend: SandboxBackend::Auto,
-                firejail_args: Vec::new(),
-            },
-            ..Default::default()
-        };
-        let sandbox = create_sandbox(&config);
-        // Should return some sandbox (at least NoopSandbox)
+        // Should always return a usable sandbox on Termux
         assert!(sandbox.is_available());
     }
 }
