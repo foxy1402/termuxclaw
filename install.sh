@@ -61,37 +61,33 @@ Usage:
 Requirements:
   - Termux on Android (ARM64 or ARMv7)
   - At least 2GB RAM recommended
-  - At least 6GB free storage
+  - At least 2GB free storage (for pre-built binary)
+  - At least 6GB free storage (for building from source)
   - Internet connection
 
 Options:
-  --api-key <key>            API key (skips interactive prompt)
-  --provider <id>            Provider (default: openrouter)
-  --model <id>               Model (optional)
-  --skip-onboard             Skip provider/API key configuration
-  --install-rust             Install Rust via rustup if missing
-  --skip-build               Skip build step (install only)
+  --skip-onboard             Skip onboard prompt after install
+  --force-build              Force build from source (skip binary download)
   --features <list>          Cargo features (default: termux)
+  --skip-build               Skip build/download step entirely
   -h, --help                 Show help
 
 Examples:
-  # Interactive install (recommended for first time)
+  # Standard install (downloads pre-built binary - fast!)
   ./install.sh
 
-  # Non-interactive with API key
-  ./install.sh --api-key "sk-..." --provider anthropic
+  # Build from source (for custom features)
+  ./install.sh --force-build
 
   # Minimal build (32-bit ARM or low storage)
-  ./install.sh --features termux-minimal
+  ./install.sh --force-build --features termux-minimal
 
-Environment Variables:
-  ZEROCLAW_API_KEY           API key (used when --api-key not provided)
-  ZEROCLAW_PROVIDER          Provider (default: openrouter)
-  ZEROCLAW_MODEL             Model (optional)
-
-Build Features:
-  termux          - Standard build (ARM64, includes Prometheus metrics)
-  termux-minimal  - Minimal build (ARM32 or storage-constrained)
+After Installation:
+  Run 'zeroclaw onboard' to configure:
+  - API provider and key
+  - Telegram bot token
+  - Autonomy level (full/supervised/readonly)
+  - Other channels (Discord, Slack, etc.)
 
 USAGE
 }
@@ -293,11 +289,82 @@ install_rust() {
   fi
 }
 
+# --- Download pre-built binary ---
+download_binary() {
+  info "Downloading pre-built binary from GitHub releases..."
+  
+  local release_url="https://api.github.com/repos/foxy1402/termuxclaw/releases/latest"
+  
+  step_dot "Detecting architecture..."
+  local target
+  case "$(uname -m)" in
+    aarch64) target="aarch64-linux-android" ;;
+    armv7l|armv8l) target="armv7-linux-androideabi" ;;
+    *)
+      warn "Unsupported architecture: $(uname -m)"
+      warn "Only ARM64 (aarch64) and ARMv7 are supported for pre-built binaries"
+      return 1
+      ;;
+  esac
+  step_ok "Target: $target"
+  
+  step_dot "Fetching latest release info..."
+  local download_url
+  download_url=$(curl -sL "$release_url" | grep -o "https://github.com/foxy1402/termuxclaw/releases/download/[^\"]*zeroclaw-${target}[^\"]*\.tar\.gz" | head -1)
+  
+  if [[ -z "$download_url" ]]; then
+    warn "No pre-built binary found for $target"
+    return 1
+  fi
+  
+  step_ok "Found: $(basename "$download_url")"
+  
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local temp_archive="$temp_dir/zeroclaw.tar.gz"
+  
+  step_dot "Downloading..."
+  if ! curl -L -o "$temp_archive" "$download_url"; then
+    error "Failed to download binary"
+    rm -rf "$temp_dir"
+    return 1
+  fi
+  
+  step_dot "Extracting..."
+  if ! tar -xzf "$temp_archive" -C "$temp_dir"; then
+    error "Failed to extract archive"
+    rm -rf "$temp_dir"
+    return 1
+  fi
+  
+  local temp_binary="$temp_dir/zeroclaw"
+  if [[ ! -f "$temp_binary" ]]; then
+    error "Binary not found in archive"
+    rm -rf "$temp_dir"
+    return 1
+  fi
+  
+  chmod +x "$temp_binary"
+  step_ok "Download complete"
+  
+  # Install to PREFIX/bin
+  local prefix="${PREFIX:-/data/data/com.termux/files/usr}"
+  local install_path="$prefix/bin/zeroclaw"
+  
+  info "Installing to $install_path..."
+  cp "$temp_binary" "$install_path"
+  chmod +x "$install_path"
+  rm -rf "$temp_dir"
+  
+  step_ok "Binary installed successfully"
+  return 0
+}
+
 # --- Build process ---
 build_zeroclaw() {
   local features="${CARGO_FEATURES:-$DEFAULT_FEATURES}"
   
-  info "Building ZeroClaw (this may take 5-15 minutes)..."
+  info "Building ZeroClaw from source (this may take 5-15 minutes)..."
   step_dot "Features: $features"
   step_dot "Target: $RUST_TARGET"
   
@@ -359,36 +426,31 @@ configure_provider() {
     return 0
   fi
   
-  info "Configuring AI provider..."
+  info "Provider configuration"
   
-  local provider="${ZEROCLAW_PROVIDER:-${PROVIDER:-openrouter}}"
-  local api_key="${ZEROCLAW_API_KEY:-${API_KEY:-}}"
-  local model="${ZEROCLAW_MODEL:-${MODEL:-}}"
+  echo ""
+  echo "  ${BOLD}Next step: Configure your AI provider${RESET}"
+  echo ""
+  echo "  You can either:"
+  echo "    1. Run the full setup wizard now:"
+  echo "       ${DIM}zeroclaw onboard${RESET}"
+  echo ""
+  echo "    2. Skip for now and configure later"
+  echo ""
   
-  # Interactive prompts if not provided
-  if [[ -z "$api_key" ]]; then
+  if prompt_yes_no "Run configuration wizard now?"; then
     echo ""
-    echo "  You need an API key from an AI provider."
-    echo "  Recommended: OpenRouter (access to 200+ models with one key)"
-    echo "  Get a key: https://openrouter.ai/keys"
-    echo ""
-    read -rp "  Enter your API key: " api_key
-  fi
-  
-  if [[ -z "$api_key" ]]; then
-    warn "No API key provided. You'll need to configure manually later."
-    step_dot "Run: zeroclaw onboard"
-    return 0
-  fi
-  
-  # Run onboard command
-  if ZEROCLAW_API_KEY="$api_key" ZEROCLAW_PROVIDER="$provider" zeroclaw onboard --non-interactive; then
-    step_ok "Provider configured: $provider"
-    if [[ -n "$model" ]]; then
-      step_dot "Model: $model"
-    fi
+    zeroclaw onboard || {
+      warn "Configuration wizard exited. You can run it later with: zeroclaw onboard"
+    }
   else
-    warn "Configuration failed. Run manually: zeroclaw onboard"
+    echo ""
+    step_dot "Skipped. Run later with: ${BOLD}zeroclaw onboard${RESET}"
+    echo ""
+    echo "  ${BOLD}Quick start after onboard:${RESET}"
+    echo "    zeroclaw chat              # Interactive chat"
+    echo "    zeroclaw daemon            # Run as background service"
+    echo ""
   fi
 }
 
@@ -473,21 +535,6 @@ BOOTSCRIPT
   echo "    Crash log:   tail -f ~/.zeroclaw/logs/crashes.log"
   echo ""
 }
-  
-  chmod +x "$boot_script"
-  
-  step_ok "Boot script created: $boot_script"
-  echo ""
-  echo "  Next steps:"
-  echo "    1. Install Termux:Boot from F-Droid"
-  echo "       https://f-droid.org/en/packages/com.termux.boot/"
-  echo "    2. Restart your device"
-  echo "    3. ZeroClaw will auto-start on boot"
-  echo ""
-  echo "  To view logs: tail -f ~/.zeroclaw/daemon.log"
-  echo "  To stop daemon: pkill -f 'zeroclaw daemon'"
-  echo ""
-}
 
 # --- Main installer flow ---
 main() {
@@ -498,24 +545,12 @@ main() {
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --api-key)
-        API_KEY="$2"
-        shift 2
-        ;;
-      --provider)
-        PROVIDER="$2"
-        shift 2
-        ;;
-      --model)
-        MODEL="$2"
-        shift 2
-        ;;
       --skip-onboard)
         SKIP_ONBOARD=1
         shift
         ;;
-      --install-rust)
-        INSTALL_RUST=1
+      --force-build)
+        FORCE_BUILD=1
         shift
         ;;
       --skip-build)
@@ -550,15 +585,36 @@ main() {
   # Install dependencies
   install_dependencies
   
-  # Install Rust if needed
-  if [[ "${INSTALL_RUST:-0}" == "1" ]] || ! have_cmd cargo; then
-    install_rust
-  fi
-  
-  # Build ZeroClaw
+  # Build or download ZeroClaw
   if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
-    build_zeroclaw
-    install_binary
+    if [[ "${FORCE_BUILD:-0}" == "1" ]]; then
+      # User explicitly wants to build from source
+      info "Building from source (--force-build)..."
+      
+      # Install Rust if needed
+      if ! have_cmd cargo; then
+        install_rust
+      fi
+      
+      build_zeroclaw
+      install_binary
+    else
+      # Try downloading pre-built binary first (faster, less resource-intensive)
+      if download_binary; then
+        step_ok "Pre-built binary installed successfully"
+      else
+        # Fallback to building from source
+        warn "Pre-built binary not available, building from source..."
+        
+        # Install Rust if needed for building
+        if ! have_cmd cargo; then
+          install_rust
+        fi
+        
+        build_zeroclaw
+        install_binary
+      fi
+    fi
   else
     step_dot "Build skipped (--skip-build)"
   fi

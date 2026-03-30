@@ -16,7 +16,7 @@ env:
   CARGO_TERM_COLOR: always
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  RELEASE_CARGO_FEATURES: channel-matrix,channel-lark,memory-postgres,whatsapp-web
+  RELEASE_CARGO_FEATURES: channel-lark
 
 jobs:
   version:
@@ -182,8 +182,15 @@ jobs:
       matrix:
 
         include:
+          # Android ARM64 (most modern phones)
           - os: ubuntu-latest
             target: aarch64-linux-android
+            artifact: zeroclaw
+            ext: tar.gz
+            ndk: true
+          # Android ARMv7 (older/budget phones)
+          - os: ubuntu-latest
+            target: armv7-linux-androideabi
             artifact: zeroclaw
             ext: tar.gz
             ndk: true
