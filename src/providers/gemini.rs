@@ -589,6 +589,21 @@ impl GeminiProvider {
         Vec::new()
     }
 
+    /// Termux-only: no Gemini CLI OAuth credentials are used.
+    pub fn has_cli_credentials() -> bool {
+        false
+    }
+
+    /// Termux-only: no `~/.gemini` directory is used for runtime auth.
+    fn gemini_cli_dir() -> Option<PathBuf> {
+        None
+    }
+
+    /// Termux-only: CLI token loading is disabled.
+    fn try_load_gemini_cli_token(_override_path: Option<&PathBuf>) -> Option<OAuthTokenState> {
+        None
+    }
+
     /// Get authentication source description for diagnostics.
     /// Uses the stored enum variant — no env var re-reading at call time.
     pub fn auth_source(&self) -> &'static str {

@@ -180,6 +180,15 @@ channel-nostr = ["dep:nostr-sdk"]
 channel-lark = ["dep:prost"]
 channel-feishu = ["channel-lark"]  # Alias for Feishu users (Lark and Feishu are the same platform)
 observability-prometheus = ["dep:prometheus"]
+channel-matrix = []
+memory-postgres = []
+observability-otel = []
+plugins-wasm = []
+rag-pdf = []
+runtime-wasm = []
+voice-wake = []
+webauthn = []
+whatsapp-web = []
 
 # Prometheus metrics observer (requires 64-bit atomics; disable on 32-bit targets)
 metrics = ["observability-prometheus"]

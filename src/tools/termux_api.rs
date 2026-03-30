@@ -295,13 +295,13 @@ impl TermuxApiTool {
                 })
             }
             Err(_) => {
-                // Timeout occurred - try to kill the process
-                let _ = child.kill().await;
+                // Timeout occurred. wait_with_output consumes the child process handle,
+                // so we can't reliably send a kill signal here.
                 return Ok(ToolResult {
                     success: false,
                     output: String::new(),
                     error: Some(format!(
-                        "Command '{}' timed out after {:?} and was killed. \
+                        "Command '{}' timed out after {:?}. \
                          Termux:API may be unresponsive. Try restarting Termux:API app or device.",
                         exec, timeout
                     )),

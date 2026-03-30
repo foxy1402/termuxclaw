@@ -245,7 +245,6 @@ pub async fn run_wizard(force: bool) -> Result<Config> {
         microsoft365: crate::config::Microsoft365Config::default(),
         secrets: secrets_config,
         browser: BrowserConfig::default(),
-        browser_delegate: crate::tools::browser_delegate::BrowserDelegateConfig::default(),
         http_request: crate::config::HttpRequestConfig::default(),
         multimodal: crate::config::MultimodalConfig::default(),
         media_pipeline: crate::config::MediaPipelineConfig::default(),
@@ -702,7 +701,6 @@ async fn run_quick_setup_with_home(
         microsoft365: crate::config::Microsoft365Config::default(),
         secrets: SecretsConfig::default(),
         browser: BrowserConfig::default(),
-        browser_delegate: crate::tools::browser_delegate::BrowserDelegateConfig::default(),
         http_request: crate::config::HttpRequestConfig::default(),
         multimodal: crate::config::MultimodalConfig::default(),
         media_pipeline: crate::config::MediaPipelineConfig::default(),
@@ -2724,33 +2722,7 @@ async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String,
         key
     } else if canonical_provider_name(provider_name) == "gemini" {
         // Special handling for Gemini: check for CLI auth first
-        if crate::providers::gemini::GeminiProvider::has_cli_credentials() {
-            print_bullet(&format!(
-                "{} Gemini CLI credentials detected! You can skip the API key.",
-                style("✓").green().bold()
-            ));
-            print_bullet("ZeroClaw will reuse your existing Gemini CLI authentication.");
-            println!();
-
-            let use_cli: bool = dialoguer::Confirm::new()
-                .with_prompt("  Use existing Gemini CLI authentication?")
-                .default(true)
-                .interact()?;
-
-            if use_cli {
-                println!(
-                    "  {} Using Gemini CLI OAuth tokens",
-                    style("✓").green().bold()
-                );
-                String::new() // Empty key = will use CLI tokens
-            } else {
-                print_bullet("Get your API key at: https://aistudio.google.com/app/apikey");
-                Input::new()
-                    .with_prompt("  Paste your Gemini API key")
-                    .allow_empty(true)
-                    .interact_text()?
-            }
-        } else if std::env::var("GEMINI_API_KEY").is_ok() {
+        if std::env::var("GEMINI_API_KEY").is_ok() {
             print_bullet(&format!(
                 "{} GEMINI_API_KEY environment variable detected!",
                 style("✓").green().bold()
@@ -2758,7 +2730,6 @@ async fn setup_provider(workspace_dir: &Path) -> Result<(String, String, String,
             String::new()
         } else {
             print_bullet("Get your API key at: https://aistudio.google.com/app/apikey");
-            print_bullet("Or run `gemini` CLI to authenticate (tokens will be reused).");
             println!();
 
             Input::new()
