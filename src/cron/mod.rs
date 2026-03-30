@@ -823,6 +823,7 @@ mod tests {
         let mut config = test_config(&tmp);
         config.autonomy.allowed_commands = vec!["echo".into(), "touch".into()];
         config.autonomy.require_approval_for_medium_risk = true;
+        config.autonomy.level = crate::security::AutonomyLevel::Supervised;
         let at = chrono::Utc::now() + chrono::Duration::hours(1);
 
         let denied = add_once_at_validated(&config, at, "touch at-medium", false);
