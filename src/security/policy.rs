@@ -1528,21 +1528,71 @@ impl SecurityPolicy {
 mod tests {
     use super::*;
 
+    /// Test-only secure defaults (pre-Termux behavior) for security policy tests.
+    /// Production defaults are permissive Termux defaults (Full autonomy, no restrictions).
     fn default_policy() -> SecurityPolicy {
-        SecurityPolicy::default()
+        SecurityPolicy {
+            autonomy: AutonomyLevel::Supervised,
+            workspace_dir: PathBuf::from("."),
+            workspace_only: true,
+            allowed_commands: vec![
+                "ls".into(),
+                "git".into(),
+                "cargo".into(),
+                "cat".into(),
+                "grep".into(),
+                "date".into(),
+                "head".into(),
+                "tail".into(),
+                "find".into(),
+                "wc".into(),
+                "sort".into(),
+                "uniq".into(),
+                "echo".into(),
+                "env".into(),
+            ],
+            forbidden_paths: vec![
+                "/etc".into(),
+                "/var".into(),
+                "/root".into(),
+                "/home".into(),
+                "/usr".into(),
+                "/bin".into(),
+                "/sbin".into(),
+                "/lib".into(),
+                "/opt".into(),
+                "/boot".into(),
+                "/dev".into(),
+                "/proc".into(),
+                "/sys".into(),
+                "/tmp".into(),
+                "~".into(),
+                "~/.ssh".into(),
+                "~/.gnupg".into(),
+                "~/.aws".into(),
+                "~/.config".into(),
+            ],
+            allowed_roots: Vec::new(),
+            max_actions_per_hour: 1000,
+            max_cost_per_day_cents: 10000,
+            require_approval_for_medium_risk: true,
+            block_high_risk_commands: true,
+            shell_env_passthrough: vec![],
+            tracker: ActionTracker::new(),
+        }
     }
 
     fn readonly_policy() -> SecurityPolicy {
         SecurityPolicy {
             autonomy: AutonomyLevel::ReadOnly,
-            ..SecurityPolicy::default()
+            ..default_policy()
         }
     }
 
     fn full_policy() -> SecurityPolicy {
         SecurityPolicy {
             autonomy: AutonomyLevel::Full,
-            ..SecurityPolicy::default()
+            ..default_policy()
         }
     }
 
@@ -1657,7 +1707,7 @@ mod tests {
     fn allowlist_supports_explicit_executable_paths() {
         let p = SecurityPolicy {
             allowed_commands: vec!["/usr/bin/antigravity".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         assert!(p.is_command_allowed("/usr/bin/antigravity"));
@@ -1668,7 +1718,7 @@ mod tests {
     fn allowlist_supports_wildcard_entry() {
         let p = SecurityPolicy {
             allowed_commands: vec!["*".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         assert!(p.is_command_allowed("python3 --version"));
@@ -1702,7 +1752,7 @@ mod tests {
     fn custom_allowlist() {
         let p = SecurityPolicy {
             allowed_commands: vec!["docker".into(), "kubectl".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(p.is_command_allowed("docker ps"));
         assert!(p.is_command_allowed("kubectl get pods"));
@@ -1714,7 +1764,7 @@ mod tests {
     fn empty_allowlist_blocks_everything() {
         let p = SecurityPolicy {
             allowed_commands: vec![],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_command_allowed("ls"));
         assert!(!p.is_command_allowed("echo hello"));
@@ -1731,7 +1781,7 @@ mod tests {
     fn command_risk_medium_for_mutating_commands() {
         let p = SecurityPolicy {
             allowed_commands: vec!["git".into(), "touch".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert_eq!(
             p.command_risk_level("git reset --hard HEAD~1"),
@@ -1747,7 +1797,7 @@ mod tests {
     fn command_risk_high_for_dangerous_commands() {
         let p = SecurityPolicy {
             allowed_commands: vec!["rm".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert_eq!(
             p.command_risk_level("rm -rf /tmp/test"),
@@ -1761,7 +1811,7 @@ mod tests {
             autonomy: AutonomyLevel::Supervised,
             require_approval_for_medium_risk: true,
             allowed_commands: vec!["touch".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let denied = p.validate_command_execution("touch test.txt", false);
@@ -1780,7 +1830,7 @@ mod tests {
         let p = SecurityPolicy {
             autonomy: AutonomyLevel::Supervised,
             allowed_commands: vec!["*".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let result = p.validate_command_execution("rm -rf /tmp/test", true);
@@ -1797,7 +1847,7 @@ mod tests {
             autonomy: AutonomyLevel::Full,
             allowed_commands: vec!["curl".into()],
             block_high_risk_commands: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let result = p.validate_command_execution("curl https://api.example.com/data", true);
@@ -1810,7 +1860,7 @@ mod tests {
             autonomy: AutonomyLevel::Full,
             allowed_commands: vec!["wget".into()],
             block_high_risk_commands: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let result =
@@ -1825,7 +1875,7 @@ mod tests {
             autonomy: AutonomyLevel::Full,
             allowed_commands: vec!["curl".into()],
             block_high_risk_commands: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let result = p.validate_command_execution("wget https://evil.com", true);
@@ -1840,7 +1890,7 @@ mod tests {
             autonomy: AutonomyLevel::Full,
             allowed_commands: vec!["rm".into()],
             block_high_risk_commands: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let result = p.validate_command_execution("rm -rf /tmp/test", true);
@@ -1856,7 +1906,7 @@ mod tests {
             autonomy: AutonomyLevel::Supervised,
             allowed_commands: vec!["curl".into()],
             block_high_risk_commands: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let denied = p.validate_command_execution("curl https://api.example.com", false);
@@ -1875,7 +1925,7 @@ mod tests {
             autonomy: AutonomyLevel::Full,
             allowed_commands: vec!["curl".into(), "grep".into()],
             block_high_risk_commands: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let result = p.validate_command_execution("curl https://api.example.com | grep data", true);
@@ -1888,7 +1938,7 @@ mod tests {
             autonomy: AutonomyLevel::Full,
             require_approval_for_medium_risk: true,
             allowed_commands: vec!["touch".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         let result = p.validate_command_execution("touch test.txt", false);
@@ -1922,6 +1972,7 @@ mod tests {
         assert!(!p.is_path_allowed(".."));
     }
 
+    #[cfg(unix)]
     #[test]
     fn absolute_paths_blocked_when_workspace_only() {
         let p = default_policy();
@@ -1930,12 +1981,13 @@ mod tests {
         assert!(!p.is_path_allowed("/tmp/file.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn absolute_path_inside_workspace_allowed_when_workspace_only() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/home/user/.zeroclaw/workspace"),
             workspace_only: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         // Absolute path inside workspace should be allowed
         assert!(p.is_path_allowed("/home/user/.zeroclaw/workspace/images/example.png"));
@@ -1945,13 +1997,14 @@ mod tests {
         assert!(!p.is_path_allowed("/tmp/file.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn absolute_path_in_allowed_root_permitted_when_workspace_only() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/home/user/.zeroclaw/workspace"),
             workspace_only: true,
             allowed_roots: vec![PathBuf::from("/home/user/.zeroclaw/shared")],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         // Path in allowed root should be permitted
         assert!(p.is_path_allowed("/home/user/.zeroclaw/shared/data.txt"));
@@ -1961,21 +2014,23 @@ mod tests {
         assert!(!p.is_path_allowed("/home/user/other/file.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn absolute_paths_allowed_when_not_workspace_only() {
         let p = SecurityPolicy {
             workspace_only: false,
             forbidden_paths: vec![],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(p.is_path_allowed("/tmp/file.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn forbidden_paths_blocked() {
         let p = SecurityPolicy {
             workspace_only: false,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_path_allowed("/etc/passwd"));
         assert!(!p.is_path_allowed("/root/.bashrc"));
@@ -2036,10 +2091,21 @@ mod tests {
         let workspace = PathBuf::from("/tmp/test-workspace");
         let policy = SecurityPolicy::from_config(&autonomy_config, &workspace);
 
-        let expected_home_root = if let Some(home) = std::env::var_os("HOME") {
-            PathBuf::from(home).join("Desktop")
-        } else {
-            PathBuf::from("~/Desktop")
+        // Expand ~ to home directory (USERPROFILE on Windows, HOME on Unix)
+        let expected_home_root = {
+            #[cfg(target_os = "windows")]
+            {
+                std::env::var_os("USERPROFILE")
+                    .or_else(|| std::env::var_os("HOME"))
+                    .map(|h| PathBuf::from(h).join("Desktop"))
+                    .unwrap_or_else(|| PathBuf::from("~/Desktop"))
+            }
+            #[cfg(not(target_os = "windows"))]
+            {
+                std::env::var_os("HOME")
+                    .map(|h| PathBuf::from(h).join("Desktop"))
+                    .unwrap_or_else(|| PathBuf::from("~/Desktop"))
+            }
         };
 
         assert_eq!(policy.allowed_roots[0], expected_home_root);
@@ -2092,7 +2158,7 @@ mod tests {
     fn record_action_allows_within_limit() {
         let p = SecurityPolicy {
             max_actions_per_hour: 5,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         for _ in 0..5 {
             assert!(p.record_action(), "should allow actions within limit");
@@ -2103,7 +2169,7 @@ mod tests {
     fn record_action_blocks_over_limit() {
         let p = SecurityPolicy {
             max_actions_per_hour: 3,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(p.record_action()); // 1
         assert!(p.record_action()); // 2
@@ -2115,7 +2181,7 @@ mod tests {
     fn is_rate_limited_reflects_count() {
         let p = SecurityPolicy {
             max_actions_per_hour: 2,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_rate_limited());
         p.record_action();
@@ -2156,7 +2222,7 @@ mod tests {
     fn quoted_semicolons_do_not_split_sqlite_command() {
         let p = SecurityPolicy {
             allowed_commands: vec!["sqlite3".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(p.is_command_allowed(
             "sqlite3 /tmp/test.db \"CREATE TABLE t(id INT); INSERT INTO t VALUES(1); SELECT * FROM t;\""
@@ -2173,7 +2239,7 @@ mod tests {
     fn unquoted_semicolon_after_quoted_sql_still_splits_commands() {
         let p = SecurityPolicy {
             allowed_commands: vec!["sqlite3".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_command_allowed("sqlite3 /tmp/test.db \"SELECT 1;\"; rm -rf /"));
     }
@@ -2457,7 +2523,7 @@ mod tests {
     fn path_home_tilde_ssh() {
         let p = SecurityPolicy {
             workspace_only: false,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_path_allowed("~/.ssh/id_rsa"));
         assert!(!p.is_path_allowed("~/.gnupg/secring.gpg"));
@@ -2469,7 +2535,7 @@ mod tests {
     fn path_var_run_blocked() {
         let p = SecurityPolicy {
             workspace_only: false,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_path_allowed("/var/run/docker.sock"));
     }
@@ -2480,7 +2546,7 @@ mod tests {
     fn rate_limit_exactly_at_boundary() {
         let p = SecurityPolicy {
             max_actions_per_hour: 1,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(p.record_action()); // 1 — exactly at limit
         assert!(!p.record_action()); // 2 — over
@@ -2491,7 +2557,7 @@ mod tests {
     fn rate_limit_zero_blocks_everything() {
         let p = SecurityPolicy {
             max_actions_per_hour: 0,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.record_action());
     }
@@ -2500,7 +2566,7 @@ mod tests {
     fn rate_limit_high_allows_many() {
         let p = SecurityPolicy {
             max_actions_per_hour: 10000,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         for _ in 0..100 {
             assert!(p.record_action());
@@ -2514,7 +2580,7 @@ mod tests {
         let p = SecurityPolicy {
             autonomy: AutonomyLevel::ReadOnly,
             allowed_commands: vec!["ls".into(), "cat".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_command_allowed("ls"));
         assert!(!p.is_command_allowed("cat"));
@@ -2526,7 +2592,7 @@ mod tests {
         let p = SecurityPolicy {
             autonomy: AutonomyLevel::Supervised,
             allowed_commands: vec!["git".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(p.is_command_allowed("git status"));
         assert!(!p.is_command_allowed("docker ps"));
@@ -2537,7 +2603,7 @@ mod tests {
         let p = SecurityPolicy {
             autonomy: AutonomyLevel::Full,
             workspace_only: false,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_path_allowed("/etc/shadow"));
         assert!(!p.is_path_allowed("/root/.bashrc"));
@@ -2555,7 +2621,7 @@ mod tests {
             workspace_dir: canonical_workspace.clone(),
             workspace_only: false,
             forbidden_paths: vec!["/etc".into(), "/var".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         // Path outside workspace should be allowed when workspace_only=false
@@ -2592,7 +2658,7 @@ mod tests {
         let p = SecurityPolicy {
             workspace_dir: canonical_workspace.clone(),
             workspace_only: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         // Path inside workspace — allowed
@@ -2644,6 +2710,7 @@ mod tests {
 
     // ── Checklist #3: Filesystem scoped (no /) ──────────────
 
+    #[cfg(unix)]
     #[test]
     fn checklist_root_path_blocked() {
         let p = default_policy();
@@ -2651,11 +2718,12 @@ mod tests {
         assert!(!p.is_path_allowed("/anything"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn checklist_all_system_dirs_blocked() {
         let p = SecurityPolicy {
             workspace_only: false,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         for dir in [
             "/etc", "/root", "/home", "/usr", "/bin", "/sbin", "/lib", "/opt", "/boot", "/dev",
@@ -2676,7 +2744,7 @@ mod tests {
     fn checklist_sensitive_dotfiles_blocked() {
         let p = SecurityPolicy {
             workspace_only: false,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         for path in [
             "~/.ssh/id_rsa",
@@ -2699,21 +2767,23 @@ mod tests {
         assert!(!p.is_path_allowed("file\0"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn checklist_workspace_only_blocks_absolute_outside_workspace() {
         let p = SecurityPolicy {
             workspace_only: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_path_allowed("/any/absolute/path"));
         assert!(p.is_path_allowed("relative/path.txt"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn checklist_resolved_path_must_be_in_workspace() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/home/user/project"),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         // Inside workspace — allowed
         assert!(p.is_resolved_path_allowed(Path::new("/home/user/project/src/main.rs")));
@@ -2725,31 +2795,24 @@ mod tests {
     }
 
     #[test]
+    /// Termux-only: Defaults are permissive (no workspace restrictions).
     fn checklist_default_policy_is_workspace_only() {
         let p = SecurityPolicy::default();
         assert!(
-            p.workspace_only,
-            "Default policy must be workspace_only=true"
+            !p.workspace_only,
+            "Termux default policy should have workspace_only=false (permissive)"
         );
     }
 
     #[test]
+    /// Termux-only: Defaults have no forbidden paths (user manages their own device).
     fn checklist_default_forbidden_paths_comprehensive() {
         let p = SecurityPolicy::default();
-        // Must contain all critical system dirs
-        for dir in ["/etc", "/root", "/proc", "/sys", "/dev", "/var", "/tmp"] {
-            assert!(
-                p.forbidden_paths.iter().any(|f| f == dir),
-                "Default forbidden_paths must include {dir}"
-            );
-        }
-        // Must contain sensitive dotfiles
-        for dot in ["~/.ssh", "~/.gnupg", "~/.aws"] {
-            assert!(
-                p.forbidden_paths.iter().any(|f| f == dot),
-                "Default forbidden_paths must include {dot}"
-            );
-        }
+        // Termux permissive defaults: no forbidden paths
+        assert!(
+            p.forbidden_paths.is_empty(),
+            "Termux default forbidden_paths should be empty"
+        );
     }
 
     // ── §1.2 Path resolution / symlink bypass tests ──────────
@@ -2766,7 +2829,7 @@ mod tests {
 
         let policy = SecurityPolicy {
             workspace_dir: canonical_workspace.clone(),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         // A resolved path inside the workspace should be allowed
@@ -2793,7 +2856,7 @@ mod tests {
     fn resolved_path_blocks_root_escape() {
         let policy = SecurityPolicy {
             workspace_dir: PathBuf::from("/home/zeroclaw_user/project"),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         assert!(
@@ -2825,7 +2888,7 @@ mod tests {
 
         let policy = SecurityPolicy {
             workspace_dir: workspace.clone(),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
 
         // The resolved symlink target should be outside workspace
@@ -2863,7 +2926,7 @@ mod tests {
         let policy_without = SecurityPolicy {
             workspace_dir: workspace.clone(),
             allowed_roots: vec![],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(
             !policy_without.is_resolved_path_allowed(&resolved),
@@ -2874,7 +2937,7 @@ mod tests {
         let policy_with = SecurityPolicy {
             workspace_dir: workspace.clone(),
             allowed_roots: vec![extra.clone()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(
             policy_with.is_resolved_path_allowed(&resolved),
@@ -2918,7 +2981,7 @@ mod tests {
     fn resolve_tool_path_expands_tilde() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/workspace"),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let resolved = p.resolve_tool_path("~/Documents/file.txt");
         // Should expand ~ to home dir, not join with workspace
@@ -2931,7 +2994,7 @@ mod tests {
     fn resolve_tool_path_keeps_absolute() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/workspace"),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let resolved = p.resolve_tool_path("/some/absolute/path");
         assert_eq!(resolved, PathBuf::from("/some/absolute/path"));
@@ -2941,7 +3004,7 @@ mod tests {
     fn resolve_tool_path_joins_relative() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/workspace"),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let resolved = p.resolve_tool_path("relative/path.txt");
         assert_eq!(resolved, PathBuf::from("/workspace/relative/path.txt"));
@@ -2951,7 +3014,7 @@ mod tests {
     fn resolve_tool_path_normalizes_workspace_prefixed_relative_paths() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/zeroclaw-data/workspace"),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let resolved = p.resolve_tool_path("zeroclaw-data/workspace/scripts/daily.py");
         assert_eq!(
@@ -2960,13 +3023,14 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn is_under_allowed_root_matches_allowed_roots() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/workspace"),
             workspace_only: true,
             allowed_roots: vec![PathBuf::from("/projects"), PathBuf::from("/data")],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(p.is_under_allowed_root("/projects/myapp/src/main.rs"));
         assert!(p.is_under_allowed_root("/data/file.csv"));
@@ -2974,13 +3038,14 @@ mod tests {
         assert!(!p.is_under_allowed_root("relative/path"));
     }
 
+    #[cfg(unix)]
     #[test]
     fn is_under_allowed_root_returns_false_for_empty_roots() {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/workspace"),
             workspace_only: true,
             allowed_roots: vec![],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(!p.is_under_allowed_root("/any/path"));
     }
@@ -2990,7 +3055,7 @@ mod tests {
         let workspace = PathBuf::from("/tmp/zeroclaw-profile/workspace");
         let policy = SecurityPolicy {
             workspace_dir: workspace.clone(),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let config_dir = workspace.parent().unwrap();
 
@@ -3006,7 +3071,7 @@ mod tests {
         let workspace = PathBuf::from("/tmp/zeroclaw-profile/workspace");
         let policy = SecurityPolicy {
             workspace_dir: workspace.clone(),
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let nested_dir = workspace.join("notes");
 
@@ -3031,7 +3096,7 @@ mod tests {
         let p = SecurityPolicy {
             workspace_dir: PathBuf::from("/home/user/project"),
             workspace_only: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let summary = p.prompt_summary();
         assert!(
@@ -3048,7 +3113,7 @@ mod tests {
     fn prompt_summary_omits_workspace_boundary_when_not_workspace_only() {
         let p = SecurityPolicy {
             workspace_only: false,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let summary = p.prompt_summary();
         assert!(
@@ -3061,7 +3126,7 @@ mod tests {
     fn prompt_summary_includes_allowed_commands() {
         let p = SecurityPolicy {
             allowed_commands: vec!["git".into(), "ls".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let summary = p.prompt_summary();
         assert!(summary.contains("`git`"), "should list allowed commands");
@@ -3077,7 +3142,7 @@ mod tests {
         let p = SecurityPolicy {
             workspace_only: false,
             forbidden_paths: vec!["/etc".into(), "~/.ssh".into()],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let summary = p.prompt_summary();
         assert!(summary.contains("`/etc`"), "should list forbidden paths");
@@ -3088,7 +3153,7 @@ mod tests {
     fn prompt_summary_includes_rate_limit() {
         let p = SecurityPolicy {
             max_actions_per_hour: 42,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let summary = p.prompt_summary();
         assert!(summary.contains("42"), "should mention rate limit");
@@ -3103,7 +3168,7 @@ mod tests {
         let p = SecurityPolicy {
             block_high_risk_commands: true,
             require_approval_for_medium_risk: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let summary = p.prompt_summary();
         assert!(
@@ -3120,7 +3185,7 @@ mod tests {
     fn prompt_summary_includes_allowed_roots() {
         let p = SecurityPolicy {
             allowed_roots: vec![PathBuf::from("/shared/data"), PathBuf::from("/opt/tools")],
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let summary = p.prompt_summary();
         assert!(
@@ -3139,7 +3204,7 @@ mod tests {
             allowed_commands: vec!["*".into()],
             block_high_risk_commands: false,
             workspace_only: false,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         assert!(p
             .validate_command_execution("rm -rf /tmp/test", true)
@@ -3158,7 +3223,7 @@ mod tests {
             autonomy: AutonomyLevel::Supervised,
             allowed_commands: vec!["*".into()],
             block_high_risk_commands: true,
-            ..SecurityPolicy::default()
+            ..default_policy()
         };
         let result = p.validate_command_execution("rm -rf /tmp/test", true);
         assert!(result.is_err());

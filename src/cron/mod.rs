@@ -691,6 +691,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp);
         config.autonomy.allowed_commands = vec!["echo".into(), "touch".into()];
+        config.autonomy.level = crate::security::AutonomyLevel::Supervised;
         config.autonomy.require_approval_for_medium_risk = true;
 
         let denied = add_shell_job(
@@ -727,6 +728,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp);
         config.autonomy.allowed_commands = vec!["echo".into(), "touch".into()];
+        config.autonomy.level = crate::security::AutonomyLevel::Supervised;
         config.autonomy.require_approval_for_medium_risk = true;
         let job = make_job(&config, "*/5 * * * *", None, "echo original");
 
@@ -763,6 +765,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mut config = test_config(&tmp);
         config.autonomy.allowed_commands = vec!["echo".into(), "touch".into()];
+        config.autonomy.level = crate::security::AutonomyLevel::Supervised;
         config.autonomy.require_approval_for_medium_risk = true;
         let job = make_job(&config, "*/5 * * * *", None, "echo original");
 

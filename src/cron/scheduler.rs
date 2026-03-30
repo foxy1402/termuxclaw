@@ -765,6 +765,7 @@ mod tests {
         format!("{prefix}-{}", uuid::Uuid::new_v4())
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn run_job_command_success() {
         let tmp = TempDir::new().unwrap();
@@ -778,6 +779,7 @@ mod tests {
         assert!(output.contains("status=exit status: 0"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn run_job_command_failure() {
         let tmp = TempDir::new().unwrap();
@@ -791,6 +793,7 @@ mod tests {
         assert!(output.contains("status=exit status:"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn run_job_command_times_out() {
         let tmp = TempDir::new().unwrap();
@@ -926,6 +929,7 @@ mod tests {
         assert!(output.contains("rate limit exceeded"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn execute_job_with_retry_recovers_after_first_failure() {
         let tmp = TempDir::new().unwrap();
@@ -948,6 +952,7 @@ mod tests {
         assert!(output.contains("recovered"));
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn execute_job_with_retry_exhausts_attempts() {
         let tmp = TempDir::new().unwrap();
@@ -1352,6 +1357,7 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[tokio::test]
     async fn build_cron_shell_command_executes_successfully() {
         let workspace = std::env::temp_dir();
