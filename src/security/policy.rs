@@ -171,6 +171,28 @@ fn default_allowed_commands() -> Vec<String> {
 /// Default forbidden paths for Unix platforms.
 #[cfg(not(target_os = "windows"))]
 fn default_forbidden_paths() -> Vec<String> {
+    #[cfg(target_os = "android")]
+    let mut paths = vec![
+        "/etc".into(),
+        "/root".into(),
+        "/home".into(),
+        "/usr".into(),
+        "/bin".into(),
+        "/sbin".into(),
+        "/lib".into(),
+        "/opt".into(),
+        "/boot".into(),
+        "/dev".into(),
+        "/proc".into(),
+        "/sys".into(),
+        "/var".into(),
+        "/tmp".into(),
+        "~/.ssh".into(),
+        "~/.gnupg".into(),
+        "~/.aws".into(),
+        "~/.config".into(),
+    ];
+    #[cfg(not(target_os = "android"))]
     let paths = vec![
         "/etc".into(),
         "/root".into(),
