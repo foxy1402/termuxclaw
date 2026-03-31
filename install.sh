@@ -229,10 +229,12 @@ prompt_yes_no() {
 install_dependencies() {
   info "Installing build dependencies..."
   
-  pkg update -y -q || {
+  step_dot "Updating package lists..."
+  pkg update -y || {
     error "Failed to update package lists"
     exit 1
   }
+  step_ok "Package lists updated"
   
   local packages=()
   
