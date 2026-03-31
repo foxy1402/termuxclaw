@@ -1274,25 +1274,11 @@ mod tests {
 
     #[test]
     fn try_load_cli_token_derives_client_id_from_id_token_when_missing() {
-        let payload = serde_json::json!({ "aud": "derived-client-id" });
-        let payload_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(serde_json::to_vec(&payload).unwrap());
-        let id_token = format!("header.{payload_b64}.sig");
-
+        // Termux-only: CLI token loading is disabled, should return None
         let file = tempfile::NamedTempFile::new().unwrap();
-        let json = format!(
-            r#"{{
-                "access_token": "ya29.test-access",
-                "refresh_token": "1//test-refresh",
-                "id_token": "{id_token}"
-            }}"#
-        );
-        std::fs::write(file.path(), json).unwrap();
-
         let path = file.path().to_path_buf();
-        let state = GeminiProvider::try_load_gemini_cli_token(Some(&path)).unwrap();
-        assert_eq!(state.client_id.as_deref(), Some("derived-client-id"));
-        assert_eq!(state.client_secret, None);
+        let state = GeminiProvider::try_load_gemini_cli_token(Some(&path));
+        assert!(state.is_none());
     }
 
     #[test]
