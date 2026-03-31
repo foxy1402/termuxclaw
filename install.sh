@@ -190,8 +190,8 @@ check_resources() {
     fi
   fi
   
-  # Disk space check
-  available_disk_mb=$(df -Pm "$HOME" | awk 'NR==2 {print $4}')
+  # Disk space check (use -k for Termux compatibility, convert to MB)
+  available_disk_mb=$(df -k "$HOME" | awk 'NR==2 {print int($4/1024)}')
   if [[ "$available_disk_mb" -lt 6144 ]]; then
     warn "Low disk space: ${available_disk_mb}MB free (recommended: 6GB+)"
     warn "Build artifacts are large. Free up space if build fails."
