@@ -18,6 +18,7 @@ TermuxClaw is a Termux-only fork optimized for ARM64/ARMv7 Android devices. No d
 pkg update -y && pkg install -y git
 git clone https://github.com/foxy1402/termuxclaw.git
 cd termuxclaw
+chmod +x install.sh
 ./install.sh
 
 # 3. Configure your bot:
@@ -59,6 +60,7 @@ Open Termux and run:
 pkg update -y && pkg install -y git
 git clone https://github.com/foxy1402/termuxclaw.git
 cd termuxclaw
+chmod +x install.sh
 ./install.sh
 ```
 
