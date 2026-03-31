@@ -49,3 +49,6 @@ lcov.info
 
 # Wrangler cache
 .wrangler/
+
+# Nohup logs (should use explicit redirection to ~/.zeroclaw/logs/)
+nohup.out

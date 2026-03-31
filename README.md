@@ -131,8 +131,9 @@ chmod +x ~/.termux/boot/zeroclaw.sh
 ### Starting the Watchdog
 
 ```bash
-# Start now (runs in background)
-nohup ~/.zeroclaw/watchdog.sh &
+# Start now (runs in background with proper logging)
+cd ~  # Avoid SELinux issues with nohup.out in protected directories
+nohup ~/.zeroclaw/watchdog.sh > ~/.zeroclaw/logs/nohup.log 2>&1 &
 
 # Or reboot your phone to test auto-start
 ```

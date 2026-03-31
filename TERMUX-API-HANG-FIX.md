@@ -321,7 +321,7 @@ zeroclaw chat "take a photo"
 
 ### ❓ **"How do you handle Termux API commands hangout?"**
 
-### ✅ **Answer: Fully Automated Self-Healing**
+### ✅ **Answer: Multi-Layer Self-Healing + SELinux-Safe Logging**
 
 | What Happens | Old Behavior | New Behavior |
 |--------------|--------------|--------------|
@@ -329,6 +329,7 @@ zeroclaw chat "take a photo"
 | **First timeout** | Immediate failure ❌ | Auto-retry after 500ms ✅ |
 | **Second timeout** | N/A | **Auto-restart Termux:API service** ✅ |
 | **Third timeout** | N/A | Graceful error with troubleshooting ✅ |
+| **SELinux blocks nohup.out** | API hangs indefinitely 🔴 | **Logs to ~/.zeroclaw/logs/** ✅ |
 | **User action needed** | Manual restart required 😞 | **None - fully automatic** 😊 |
 
 ### 🤖 **Bot's Self-Healing Actions** (No User Intervention)
@@ -367,6 +368,48 @@ User does NOT need to:
 - **70%** of hangs resolve on 2nd attempt (simple retry)
 - **25%** of hangs resolve after service restart (3rd attempt)
 - **5%** require user intervention (foreground-only commands, permissions)
+
+---
+
+## SELinux nohup.out Issue (NEW - March 2026)
+
+### Problem: API Commands Hang Due to SELinux Denial
+
+**Symptom**: `termux-battery-status` and other API commands hang indefinitely even with retry logic.
+
+**Root Cause**: 
+- Running `nohup ~/.zeroclaw/watchdog.sh &` from `~/termuxclaw/` (git repo directory)
+- Creates `nohup.out` in protected git directory
+- SELinux blocks Termux:API from writing to this file via ioctl
+- API commands hang waiting for permission/quota
+
+**Fix**: Use explicit output redirection to safe directory
+
+```bash
+# ❌ WRONG: Creates nohup.out in current directory (may be SELinux-protected)
+cd ~/termuxclaw
+nohup ~/.zeroclaw/watchdog.sh &
+
+# ✅ CORRECT: Redirects output to safe ~/.zeroclaw/logs/ directory
+cd ~
+nohup ~/.zeroclaw/watchdog.sh > ~/.zeroclaw/logs/nohup.log 2>&1 &
+```
+
+**Prevention**:
+- Always `cd ~` before running nohup (avoid git repo directories)
+- Use explicit `> ~/.zeroclaw/logs/nohup.log 2>&1` redirection
+- `nohup.out` now in `.gitignore` to prevent accidental commits
+
+**Emergency Cleanup**:
+```bash
+# If you already have a problematic nohup.out file:
+pkill -f 'zeroclaw-watchdog'  # Stop watchdog first
+rm -f ~/termuxclaw/nohup.out   # Delete protected file
+cd ~
+nohup ~/.zeroclaw/watchdog.sh > ~/.zeroclaw/logs/nohup.log 2>&1 &
+```
+
+---
 
 ### 🔄 **When Does Bot Ask User for Help?**
 

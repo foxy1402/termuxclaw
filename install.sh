@@ -536,7 +536,7 @@ BOOTSCRIPT
   echo "    3. Reboot your device to test auto-start"
   echo ""
   echo "  ${BOLD}Manual control:${RESET}"
-  echo "    Start now:   nohup ~/.zeroclaw/watchdog.sh &"
+  echo "    Start now:   cd ~ && nohup ~/.zeroclaw/watchdog.sh > ~/.zeroclaw/logs/nohup.log 2>&1 &"
   echo "    Stop:        pkill -f 'zeroclaw-watchdog'"
   echo "    View logs:   tail -f ~/.zeroclaw/logs/watchdog.log"
   echo "    Crash log:   tail -f ~/.zeroclaw/logs/crashes.log"
