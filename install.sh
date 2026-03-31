@@ -202,7 +202,8 @@ check_resources() {
   # Battery warning
   if have_cmd termux-battery-status; then
     local battery_percent
-    battery_percent=$(termux-battery-status | grep -oP '(?<="percentage": )[0-9]+' || echo "0")
+    # Use basic grep + awk instead of Perl regex (Termux compatibility)
+    battery_percent=$(termux-battery-status | grep -o '"percentage": [0-9]\+' | awk '{print $2}' || echo "0")
     if [[ "$battery_percent" -lt 30 ]]; then
       warn "Low battery: ${battery_percent}%"
       warn "Plug in your device before building (build takes 5-15 minutes)"
